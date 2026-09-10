@@ -1,10 +1,10 @@
 /* FL350 · the locker itself.
  *
- * Everything on this page is one member's own rows. The filtering below is
- * only there to make a long list usable — it is NOT what keeps other people
- * out. The database does that: the policy on public.flights returns nothing
- * at all for anybody who is not the owner, and the table grant refuses a
- * signed-out visitor before the policy is even consulted.
+ * Everything on this page is one member's own rows. The searching and sorting
+ * below is only there to make a long list usable — it is NOT what keeps other
+ * people out. The database does that: the policy on public.flights returns
+ * nothing at all for anybody who is not the owner, and the table grant refuses
+ * a signed-out visitor before the policy is even consulted.
  */
 (function () {
   'use strict';
@@ -13,15 +13,23 @@
   var ui = FL.ui;
   var geo = FL.geo;
 
+  var MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+  var PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+
   var flights = [];
   var editingId = null;
   var pendingDeleteId = null;
+  var pendingShareId = null;
+  var chosenPhoto = null;      // a File the member picked but has not saved yet
+  var removePhoto = false;     // they asked for the existing one to come off
+  var previewUrl = null;       // object URL for that File, revoked when done
 
   /* -------------------------------------------------------------- the DOM */
 
   var el = {
     greeting: document.getElementById('greeting'),
     sub: document.getElementById('greeting-sub'),
+    globe: document.getElementById('globe'),
     stats: document.getElementById('stats'),
     list: document.getElementById('list'),
     toolbar: document.getElementById('toolbar'),
@@ -29,6 +37,7 @@
     year: document.getElementById('filter-year'),
     sort: document.getElementById('sort'),
     count: document.getElementById('result-count'),
+    exportBtn: document.getElementById('export-csv'),
 
     sheet: document.getElementById('flight-sheet'),
     sheetTitle: document.getElementById('sheet-title'),
@@ -36,10 +45,21 @@
     save: document.getElementById('flight-save'),
     cancel: document.querySelectorAll('[data-close-sheet]'),
 
+    photoInput: document.getElementById('f-photo'),
+    photoPreview: document.getElementById('f-photo-preview'),
+    photoDrop: document.getElementById('f-photo-drop'),
+
     confirm: document.getElementById('confirm-sheet'),
     confirmText: document.getElementById('confirm-text'),
     confirmYes: document.getElementById('confirm-yes'),
     confirmNo: document.getElementById('confirm-no'),
+
+    share: document.getElementById('share-sheet'),
+    shareLink: document.getElementById('share-link'),
+    shareCopy: document.getElementById('share-copy'),
+    shareStop: document.getElementById('share-stop'),
+    shareClose: document.getElementById('share-close'),
+    shareWhat: document.getElementById('share-what'),
 
     f: {
       flight_no: document.getElementById('f-flight-no'),
@@ -53,24 +73,16 @@
     }
   };
 
-  /* --------------------------------------------------------------- icons */
-
-  var ICON_PLANE =
-    '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 15.5v-1.7l-7.5-4.4V4.2a1.3 1.3 0 0 0-2.6 0v5.2L3.4 13.8v1.7l7.5-2.2v4.4l-2.1 1.5v1.2l3.4-1 3.4 1v-1.2l-2.1-1.5v-4.4l7.5 2.2Z"/></svg>';
-  var ICON_LOCK =
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"/></svg>';
-  var ICON_EMPTY =
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 15.5 21 9M7.5 12.8 5 8l2.2-.6 3 3.1M14 19l1.4-4.4"/><rect x="2.5" y="19.5" width="19" height="1.6" rx=".8" fill="currentColor" stroke="none"/></svg>';
+  function byId(id) {
+    var found = null;
+    flights.forEach(function (flight) { if (flight.id === id) found = flight; });
+    return found;
+  }
 
   /* --------------------------------------------------------- distance etc */
 
-  function legKm(flight) {
-    return ui.greatCircleKm(geo.airport(flight.from_iata), geo.airport(flight.to_iata));
-  }
-
-  function routeKey(flight) {
-    return flight.from_iata + '–' + flight.to_iata;
-  }
+  function legKm(flight) { return FL.pass.legKm(flight); }
+  function routeKey(flight) { return flight.from_iata + '–' + flight.to_iata; }
 
   function commonest(values) {
     var tally = {};
@@ -116,9 +128,6 @@
 
     var topRoute = commonest(flights.map(routeKey));
     var topAirline = commonest(flights.map(function (f) { return f.airline; }));
-    var airportCount = Object.keys(airports).length;
-    var airlineCount = Object.keys(airlines).length;
-
     var laps = totalKm / 40075; // times around the Earth at the equator
 
     el.stats.innerHTML =
@@ -130,20 +139,14 @@
           ? (laps >= 0.1 ? '≈ ' + laps.toFixed(1) + '× around the Earth' : 'approximate, great circle')
           : measured + ' of ' + flights.length + ' legs measured'
       ) +
-      tile(
-        'Airlines',
-        ui.number(airlineCount),
-        topAirline ? 'most often ' + topAirline.value : ''
-      ) +
-      tile(
-        'Airports',
-        ui.number(airportCount),
+      tile('Airlines', ui.number(Object.keys(airlines).length),
+        topAirline ? 'most often ' + topAirline.value : '') +
+      tile('Airports', ui.number(Object.keys(airports).length),
         topRoute && topRoute.count > 1
           ? topRoute.value + ' × ' + topRoute.count
           : longest
             ? 'longest ' + routeKey(longest.flight) + ', ' + ui.number(longest.km) + ' km'
-            : ''
-      );
+            : '');
   }
 
   function tile(label, value, sub) {
@@ -152,6 +155,19 @@
       (sub ? '<p class="stat-sub" title="' + ui.esc(sub) + '">' + ui.esc(sub) + '</p>' : '') +
       '</div>'
     );
+  }
+
+  /* ---------------------------------------------------------- route globe */
+
+  function renderGlobe() {
+    if (!el.globe) return;
+    if (!FL.routeglobe || !flights.length) {
+      el.globe.hidden = true;
+      el.globe.innerHTML = '';
+      return;
+    }
+    el.globe.hidden = false;
+    FL.routeglobe.render(el.globe, flights);
   }
 
   /* ------------------------------------------------------------- the list */
@@ -194,7 +210,7 @@
     if (!flights.length) {
       el.count.textContent = '';
       el.list.innerHTML = state({
-        icon: ICON_EMPTY,
+        icon: FL.pass.icon.empty,
         title: 'Nothing here yet. Add your first flight.',
         body: 'One boarding pass per flight you have taken. Only you will ever see them.',
         action: '<button type="button" class="btn" data-add-flight><span>Add a flight</span></button>'
@@ -206,7 +222,7 @@
     if (!rows.length) {
       el.count.textContent = 'No matches';
       el.list.innerHTML = state({
-        icon: ICON_EMPTY,
+        icon: FL.pass.icon.empty,
         title: 'No flights match that.',
         body: 'Nothing in the locker matches what you typed. The flights are all still there.',
         action: '<button type="button" class="btn btn-outline" id="clear-filters"><span>Clear the filters</span></button>'
@@ -223,12 +239,18 @@
       return;
     }
 
-    el.count.textContent =
-      filtering
-        ? rows.length + ' of ' + flights.length + (flights.length === 1 ? ' flight' : ' flights')
-        : flights.length + (flights.length === 1 ? ' flight' : ' flights');
+    el.count.textContent = filtering
+      ? rows.length + ' of ' + flights.length + (flights.length === 1 ? ' flight' : ' flights')
+      : flights.length + (flights.length === 1 ? ' flight' : ' flights');
 
-    el.list.innerHTML = '<ul class="passes">' + rows.map(pass).join('') + '</ul>';
+    el.list.innerHTML =
+      '<ul class="passes">' +
+      rows.map(function (flight) {
+        return FL.pass.markup(flight, { tag: 'li', note: true, actions: true, photo: true });
+      }).join('') +
+      '</ul>';
+
+    FL.pass.hydratePhotos(el.list);
     wireRowButtons();
   }
 
@@ -244,82 +266,25 @@
     );
   }
 
-  function pass(flight) {
-    var from = geo.airport(flight.from_iata);
-    var to = geo.airport(flight.to_iata);
-    var km = legKm(flight);
-
-    var facts = [];
-    if (flight.aircraft) facts.push(fact('Aircraft', flight.aircraft));
-    if (km !== null) facts.push(fact('Distance', ui.number(km) + ' km'));
-    if (from && to) facts.push(fact('Route', from.city + ' to ' + to.city));
-
-    return (
-      '<li class="pass">' +
-        '<div class="pass-main">' +
-          '<div class="pass-head">' +
-            '<span class="pass-airline">' + ui.esc(flight.airline) + '</span>' +
-            '<span class="pass-flightno">' + ui.esc(flight.flight_no) + '</span>' +
-            '<span class="pass-date">' + ui.esc(ui.formatDay(flight.flown_on)) + '</span>' +
-          '</div>' +
-          '<div class="route">' +
-            '<div class="route-end">' +
-              '<div class="route-iata">' + ui.esc(flight.from_iata) + '</div>' +
-              '<div class="route-city">' + ui.esc(from ? from.city : 'Unlisted airport') + '</div>' +
-            '</div>' +
-            '<div class="route-line" aria-hidden="true">' + ICON_PLANE + '</div>' +
-            '<div class="route-end to">' +
-              '<div class="route-iata">' + ui.esc(flight.to_iata) + '</div>' +
-              '<div class="route-city">' + ui.esc(to ? to.city : 'Unlisted airport') + '</div>' +
-            '</div>' +
-          '</div>' +
-          (facts.length ? '<dl class="pass-facts">' + facts.join('') + '</dl>' : '') +
-          (flight.note
-            ? '<div class="pass-note">' + ICON_LOCK +
-              '<p>' + ui.esc(flight.note) + '</p></div>'
-            : '') +
-        '</div>' +
-        '<div class="pass-stub">' +
-          '<dl class="stub-seat"><dt>Seat</dt><dd>' + ui.esc(flight.seat || '—') + '</dd></dl>' +
-          barcode(flight.id) +
-          '<div class="pass-actions">' +
-            '<button type="button" class="btn btn-ghost" data-edit="' + ui.esc(flight.id) + '">Edit</button>' +
-            '<button type="button" class="btn btn-ghost" data-delete="' + ui.esc(flight.id) + '">Delete</button>' +
-          '</div>' +
-        '</div>' +
-      '</li>'
-    );
-  }
-
-  function fact(label, value) {
-    return '<div class="fact"><dt>' + ui.esc(label) + '</dt><dd>' + ui.esc(value) + '</dd></div>';
-  }
-
-  // Decorative only: bar widths come from the row id so each pass looks
-  // different but always looks the same for the same flight. The widths are
-  // classes rather than inline styles because the Content-Security-Policy on
-  // this site does not allow a style attribute in markup.
-  function barcode(seed) {
-    var text = String(seed || '');
-    var bars = '';
-    for (var i = 0; i < 34; i++) {
-      var code = text.charCodeAt(i % Math.max(1, text.length)) || 65;
-      bars += (code + i) % 3 === 0 ? '<i class="b2"></i>' : '<i></i>';
-    }
-    return '<div class="barcode" aria-hidden="true">' + bars + '</div>';
-  }
-
   function wireRowButtons() {
-    el.list.querySelectorAll('[data-edit]').forEach(function (button) {
+    each(el.list.querySelectorAll('[data-edit]'), function (button) {
       button.addEventListener('click', function () { openSheet(button.getAttribute('data-edit')); });
     });
-    el.list.querySelectorAll('[data-delete]').forEach(function (button) {
+    each(el.list.querySelectorAll('[data-delete]'), function (button) {
       button.addEventListener('click', function () { askDelete(button.getAttribute('data-delete')); });
+    });
+    each(el.list.querySelectorAll('[data-share]'), function (button) {
+      button.addEventListener('click', function () { openShare(button.getAttribute('data-share'), button); });
+    });
+    each(el.list.querySelectorAll('[data-window]'), function (button) {
+      button.addEventListener('click', function () { openWindowSeat(button.getAttribute('data-window')); });
     });
   }
 
+  function each(list, fn) { Array.prototype.forEach.call(list, fn); }
+
   function wireAddButtons() {
-    document.querySelectorAll('[data-add-flight]').forEach(function (button) {
+    each(document.querySelectorAll('[data-add-flight]'), function (button) {
       if (button.getAttribute('data-wired') === '1') return;
       button.setAttribute('data-wired', '1');
       button.addEventListener('click', function () { openSheet(null); });
@@ -344,9 +309,157 @@
 
   function renderAll() {
     rebuildYearFilter();
+    renderGlobe();
     renderStats();
     renderList();
   }
+
+  /* --------------------------------------------------------- window seat */
+
+  function openWindowSeat(id) {
+    var flight = byId(id);
+    if (!flight) return;
+    if (!FL.windowseat || !FL.windowseat.isSupported()) {
+      ui.toast('The window seat needs a browser with CSS 3D transforms.', 'bad');
+      return;
+    }
+    FL.windowseat.open(flight);
+  }
+
+  /* ------------------------------------------------------------- sharing */
+
+  function shareUrlFor(id) {
+    return location.origin + '/f/' + id;
+  }
+
+  function paintShareSheet(flight) {
+    el.shareLink.value = shareUrlFor(flight.id);
+    el.shareWhat.textContent =
+      'Anyone with this link sees ' + flight.airline + ' ' + flight.flight_no + ', ' +
+      flight.from_iata + ' to ' + flight.to_iata + ' on ' + ui.formatDay(flight.flown_on) +
+      (flight.aircraft ? ', on a ' + flight.aircraft : '') +
+      (flight.seat ? ', seat ' + flight.seat : '') + '. ' +
+      (flight.note
+        ? 'Your note stays private — the share link cannot return it.'
+        : 'Your note stays private if you add one later.');
+  }
+
+  function openShare(id, button) {
+    var flight = byId(id);
+    if (!flight) return;
+    pendingShareId = id;
+
+    if (flight.is_public) {
+      paintShareSheet(flight);
+      el.share.showModal();
+      el.shareCopy.focus();
+      return;
+    }
+
+    ui.busy(button, true);
+    FL.flights.setShared(id, true).then(
+      function (row) {
+        ui.busy(button, false);
+        flights = flights.map(function (f) { return f.id === row.id ? row : f; });
+        renderAll();
+        paintShareSheet(row);
+        el.share.showModal();
+        el.shareCopy.focus();
+      },
+      function (err) {
+        ui.busy(button, false);
+        ui.toast(err.message || 'That could not be shared.', 'bad');
+      }
+    );
+  }
+
+  el.shareCopy.addEventListener('click', function () {
+    var text = el.shareLink.value;
+    function fallback() {
+      el.shareLink.focus();
+      el.shareLink.select();
+      ui.toast('Link selected — copy it with Ctrl+C.', 'info');
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(
+        function () { ui.toast('Link copied.'); },
+        fallback
+      );
+    } else {
+      fallback();
+    }
+  });
+
+  el.shareStop.addEventListener('click', function () {
+    var id = pendingShareId;
+    if (!id) return;
+    ui.busy(el.shareStop, true);
+    FL.flights.setShared(id, false).then(
+      function (row) {
+        ui.busy(el.shareStop, false);
+        el.share.close();
+        pendingShareId = null;
+        flights = flights.map(function (f) { return f.id === row.id ? row : f; });
+        renderAll();
+        ui.toast('Sharing switched off. The link is dead.');
+      },
+      function (err) {
+        ui.busy(el.shareStop, false);
+        ui.toast(err.message || 'That could not be changed.', 'bad');
+      }
+    );
+  });
+
+  el.shareClose.addEventListener('click', function () {
+    pendingShareId = null;
+    el.share.close();
+  });
+
+  /* ---------------------------------------------------------- csv export */
+
+  function csvCell(value) {
+    var text = value === null || value === undefined ? '' : String(value);
+    return '"' + text.replace(/"/g, '""') + '"';
+  }
+
+  function exportCsv() {
+    if (!flights.length) return;
+
+    var headers = ['flight_no', 'airline', 'from_iata', 'from_city', 'to_iata', 'to_city',
+                   'flown_on', 'aircraft', 'seat', 'distance_km', 'shared', 'note'];
+
+    var lines = [headers.join(',')];
+    visible().forEach(function (flight) {
+      var from = geo.airport(flight.from_iata);
+      var to = geo.airport(flight.to_iata);
+      var km = legKm(flight);
+      lines.push([
+        flight.flight_no, flight.airline,
+        flight.from_iata, from ? from.city : '',
+        flight.to_iata, to ? to.city : '',
+        flight.flown_on, flight.aircraft || '', flight.seat || '',
+        km === null ? '' : km,
+        flight.is_public ? 'yes' : 'no',
+        flight.note || ''
+      ].map(csvCell).join(','));
+    });
+
+    // The byte order mark is the difference between this opening correctly in
+    // Excel and opening as mojibake, which matters for Arabic in the notes.
+    var blob = new Blob(['﻿' + lines.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'fl350-logbook-' + ui.todayISO() + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+
+    ui.toast('Downloaded ' + (lines.length - 1) + ' flights. The file includes your private notes.', 'info');
+  }
+
+  if (el.exportBtn) el.exportBtn.addEventListener('click', exportCsv);
 
   /* ------------------------------------------------------------ the sheet */
 
@@ -360,16 +473,94 @@
 
   function clearErrors() {
     Object.keys(el.f).forEach(function (key) { fieldError(el.f[key], ''); });
+    fieldError(el.photoInput, '');
+  }
+
+  function clearPhotoChoice() {
+    chosenPhoto = null;
+    removePhoto = false;
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+    if (el.photoInput) el.photoInput.value = '';
+  }
+
+  function paintPhotoArea(flight) {
+    if (!el.photoPreview) return;
+
+    if (chosenPhoto && previewUrl) {
+      el.photoPreview.innerHTML =
+        '<img class="photo-thumb" alt="The photograph you just chose." src="' + ui.esc(previewUrl) + '">' +
+        '<div class="photo-side">' +
+          '<p class="caption">' + ui.esc(chosenPhoto.name) + ' · ' +
+            Math.round(chosenPhoto.size / 1024) + ' KB</p>' +
+          '<button type="button" class="btn btn-ghost" data-photo-clear><span>Choose another</span></button>' +
+        '</div>';
+    } else if (flight && flight.photo_path && !removePhoto) {
+      el.photoPreview.innerHTML =
+        '<figure class="photo-thumb-wrap" data-photo="' + ui.esc(flight.photo_path) + '">' +
+          '<div class="skeleton photo-thumb"></div>' +
+        '</figure>' +
+        '<div class="photo-side">' +
+          '<p class="caption">Already attached to this flight.</p>' +
+          '<button type="button" class="btn btn-ghost" data-photo-remove><span>Take it off</span></button>' +
+        '</div>';
+      FL.pass.hydratePhotos(el.photoPreview);
+    } else if (removePhoto) {
+      el.photoPreview.innerHTML =
+        '<div class="photo-side">' +
+          '<p class="caption">The photograph will come off when you save.</p>' +
+          '<button type="button" class="btn btn-ghost" data-photo-keep><span>Keep it after all</span></button>' +
+        '</div>';
+    } else {
+      el.photoPreview.innerHTML = '';
+    }
+
+    each(el.photoPreview.querySelectorAll('[data-photo-clear]'), function (b) {
+      b.addEventListener('click', function () { clearPhotoChoice(); paintPhotoArea(byId(editingId)); el.photoInput.click(); });
+    });
+    each(el.photoPreview.querySelectorAll('[data-photo-remove]'), function (b) {
+      b.addEventListener('click', function () { removePhoto = true; chosenPhoto = null; paintPhotoArea(byId(editingId)); });
+    });
+    each(el.photoPreview.querySelectorAll('[data-photo-keep]'), function (b) {
+      b.addEventListener('click', function () { removePhoto = false; paintPhotoArea(byId(editingId)); });
+    });
+  }
+
+  if (el.photoInput) {
+    el.photoInput.addEventListener('change', function () {
+      var file = el.photoInput.files && el.photoInput.files[0];
+      if (!file) { clearPhotoChoice(); paintPhotoArea(byId(editingId)); return; }
+
+      if (PHOTO_TYPES.indexOf(file.type) === -1) {
+        fieldError(el.photoInput, 'JPEG, PNG, WebP or AVIF only.');
+        clearPhotoChoice();
+        paintPhotoArea(byId(editingId));
+        return;
+      }
+      if (file.size > MAX_PHOTO_BYTES) {
+        fieldError(el.photoInput, 'That is ' + Math.round(file.size / 1024 / 1024) + ' MB. The limit is 5 MB.');
+        clearPhotoChoice();
+        paintPhotoArea(byId(editingId));
+        return;
+      }
+
+      fieldError(el.photoInput, '');
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      chosenPhoto = file;
+      removePhoto = false;
+      previewUrl = URL.createObjectURL(file);
+      paintPhotoArea(byId(editingId));
+    });
   }
 
   function openSheet(id) {
     editingId = id || null;
     clearErrors();
+    clearPhotoChoice();
     el.form.reset();
 
-    if (editingId) {
-      var flight = flights.filter(function (f) { return f.id === editingId; })[0];
-      if (!flight) return;
+    var flight = editingId ? byId(editingId) : null;
+
+    if (flight) {
       el.sheetTitle.textContent = 'Edit ' + flight.flight_no;
       el.f.flight_no.value = flight.flight_no || '';
       el.f.airline.value = flight.airline || '';
@@ -385,6 +576,7 @@
       el.save.querySelector('span').textContent = 'Add to my locker';
     }
 
+    paintPhotoArea(flight);
     el.f.flown_on.max = ui.todayISO();
     el.sheet.showModal();
     el.f.flight_no.focus();
@@ -393,6 +585,7 @@
   function closeSheet() {
     if (el.sheet.open) el.sheet.close();
     editingId = null;
+    clearPhotoChoice();
   }
 
   function validate() {
@@ -413,15 +606,12 @@
     var from = f.from_iata.value.trim().toUpperCase();
     var to = f.to_iata.value.trim().toUpperCase();
 
-    if (!/^[A-Z]{3}$/.test(from)) {
-      ok = fieldError(f.from_iata, 'Three letters, like KWI.') && ok;
-    } else ok = fieldError(f.from_iata, '') && ok;
+    if (!/^[A-Z]{3}$/.test(from)) ok = fieldError(f.from_iata, 'Three letters, like KWI.') && ok;
+    else ok = fieldError(f.from_iata, '') && ok;
 
-    if (!/^[A-Z]{3}$/.test(to)) {
-      ok = fieldError(f.to_iata, 'Three letters, like ICN.') && ok;
-    } else if (to === from) {
-      ok = fieldError(f.to_iata, 'A flight has to land somewhere else.') && ok;
-    } else ok = fieldError(f.to_iata, '') && ok;
+    if (!/^[A-Z]{3}$/.test(to)) ok = fieldError(f.to_iata, 'Three letters, like ICN.') && ok;
+    else if (to === from) ok = fieldError(f.to_iata, 'A flight has to land somewhere else.') && ok;
+    else ok = fieldError(f.to_iata, '') && ok;
 
     var date = f.flown_on.value;
     if (!date) ok = fieldError(f.flown_on, 'When did you fly?') && ok;
@@ -455,6 +645,35 @@
     };
   }
 
+  // The picture cannot be uploaded until the row exists, because the object is
+  // named after the flight's id. So: write the row, then the file, then point
+  // the row at it. Every step is the member's own folder or their own row.
+  function attachPhoto(row) {
+    if (!chosenPhoto) {
+      if (!removePhoto || !row.photo_path) return Promise.resolve(row);
+      var oldPath = row.photo_path;
+      return FL.flights.update(row.id, { photo_path: null }).then(function (updated) {
+        return FL.photos.remove(oldPath).then(
+          function () { return updated; },
+          function () { return updated; } // the row is what matters
+        );
+      });
+    }
+
+    var path = FL.photos.pathFor(row.id, chosenPhoto);
+    if (!path) {
+      ui.toast('That photograph could not be named. The flight was saved without it.', 'bad');
+      return Promise.resolve(row);
+    }
+
+    return FL.photos.upload(path, chosenPhoto)
+      .then(function () { return FL.flights.update(row.id, { photo_path: path }); })
+      .catch(function (err) {
+        ui.toast('The flight was saved, but the photograph was not: ' + (err.message || ''), 'bad');
+        return row;
+      });
+  }
+
   el.form.addEventListener('submit', function (event) {
     event.preventDefault();
     if (!validate()) {
@@ -470,6 +689,7 @@
     var work = wasEditing ? FL.flights.update(wasEditing, body) : FL.flights.add(body);
 
     work
+      .then(attachPhoto)
       .then(function (row) {
         ui.busy(el.save, false);
         closeSheet();
@@ -479,9 +699,7 @@
           ui.toast(row.flight_no + ' updated.');
         } else {
           flights.unshift(row);
-          ui.toast(
-            'Saved. ' + row.flight_no + ', ' + row.from_iata + ' to ' + row.to_iata + '.'
-          );
+          ui.toast('Saved. ' + row.flight_no + ', ' + row.from_iata + ' to ' + row.to_iata + '.');
         }
         renderAll();
       })
@@ -491,19 +709,21 @@
       });
   });
 
-  el.cancel.forEach(function (button) {
+  each(el.cancel, function (button) {
     button.addEventListener('click', function () { closeSheet(); });
   });
 
-  /* ----------------------------------------------------------- delete flow */
+  /* ---------------------------------------------------------- delete flow */
 
   function askDelete(id) {
-    var flight = flights.filter(function (f) { return f.id === id; })[0];
+    var flight = byId(id);
     if (!flight) return;
     pendingDeleteId = id;
     el.confirmText.textContent =
       'Remove ' + flight.flight_no + ', ' + flight.from_iata + ' to ' + flight.to_iata +
-      ' on ' + ui.formatDay(flight.flown_on) + '? This cannot be undone.';
+      ' on ' + ui.formatDay(flight.flown_on) + '?' +
+      (flight.photo_path ? ' The photograph goes with it.' : '') +
+      ' This cannot be undone.';
     el.confirm.showModal();
     el.confirmNo.focus();
   }
@@ -516,10 +736,17 @@
   el.confirmYes.addEventListener('click', function () {
     var id = pendingDeleteId;
     if (!id) return;
+    var flight = byId(id);
     ui.busy(el.confirmYes, true);
 
     FL.flights
       .remove(id)
+      .then(function () {
+        // The row is gone; the file should not be left behind in the bucket.
+        if (flight && flight.photo_path) {
+          return FL.photos.remove(flight.photo_path).catch(function () {});
+        }
+      })
       .then(function () {
         ui.busy(el.confirmYes, false);
         el.confirm.close();
@@ -559,11 +786,17 @@
   });
 
   document.addEventListener('keydown', function (event) {
-    if (event.key === '/' && document.activeElement !== el.search && !el.sheet.open && !el.confirm.open) {
-      var tag = (document.activeElement && document.activeElement.tagName) || '';
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    var busy = el.sheet.open || el.confirm.open || el.share.open;
+    var tag = (document.activeElement && document.activeElement.tagName) || '';
+    var typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    if (busy || typing) return;
+
+    if (event.key === '/') {
       event.preventDefault();
       el.search.focus();
+    } else if (event.key === 'n' || event.key === 'N') {
+      event.preventDefault();
+      openSheet(null);
     }
   });
 
@@ -587,12 +820,13 @@
   function showLoadFailure(err) {
     el.stats.hidden = true;
     el.toolbar.hidden = true;
+    if (el.globe) el.globe.hidden = true;
     el.count.textContent = '';
 
     var isConfig = err && typeof err.code === 'string' && err.code.indexOf('config') === 0;
     el.list.innerHTML = state({
       bad: true,
-      icon: ICON_LOCK,
+      icon: FL.pass.icon.lock,
       title: isConfig ? 'The site cannot reach its settings.' : 'Could not open the locker.',
       body: isConfig
         ? 'This is the classic one: it works on a laptop and breaks on the live site because the database keys are not in the Vercel project.'

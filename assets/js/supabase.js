@@ -261,7 +261,11 @@
     });
   }
 
-  var COLUMNS = 'id,flight_no,airline,from_iata,to_iata,flown_on,aircraft,seat,note,created_at,updated_at';
+  var COLUMNS =
+    'id,flight_no,airline,from_iata,to_iata,flown_on,aircraft,seat,note,' +
+    'is_public,shared_at,photo_path,created_at,updated_at';
+
+  var PHOTO_BUCKET = 'flight-photos';
 
   var flights = {
     list: function () {
@@ -301,10 +305,118 @@
         }
         return true;
       });
+    },
+
+    // Opening or closing the share door on one flight. shared_at is set by the
+    // database, not here, so the browser cannot backdate it.
+    setShared: function (id, isPublic) {
+      return flights.update(id, { is_public: !!isPublic });
     }
   };
 
+  /* -------------------------------------------------------------- storage */
+  //
+  // The photograph bucket is private. Nothing in it has a public address, so a
+  // picture is fetched through a signed link that expires. Objects are always
+  // named <owner uuid>/<flight id>.<ext>, which is what the storage policies
+  // check against the token.
+
+  function storageFetch(path, options) {
+    options = options || {};
+    return auth.token().then(function (token) {
+      return FL.config().then(function (cfg) {
+        var headers = { apikey: cfg.key, Authorization: 'Bearer ' + token };
+        if (options.contentType) headers['Content-Type'] = options.contentType;
+        if (options.json) headers['Content-Type'] = 'application/json';
+        if (options.upsert) headers['x-upsert'] = 'true';
+
+        return fetch(cfg.url + '/storage/v1' + path, {
+          method: options.method || 'GET',
+          headers: headers,
+          body: options.body
+        }).then(function (response) {
+          return response.text().then(function (text) {
+            var parsed = null;
+            if (text) {
+              try { parsed = JSON.parse(text); } catch (e) { parsed = { message: text }; }
+            }
+            if (!response.ok) throw fail(response.status, parsed);
+            return parsed;
+          });
+        }, function () {
+          throw fail(0, null);
+        });
+      });
+    });
+  }
+
+  var photos = {
+    // The extension has to match what the database constraint allows.
+    extensionFor: function (file) {
+      var byType = {
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'image/avif': 'avif'
+      };
+      return byType[file && file.type] || null;
+    },
+
+    pathFor: function (flightId, file) {
+      var session = read();
+      var owner = session && session.user && session.user.id;
+      var ext = photos.extensionFor(file);
+      if (!owner || !ext) return null;
+      return owner + '/' + flightId + '.' + ext;
+    },
+
+    upload: function (path, file) {
+      return storageFetch('/object/' + PHOTO_BUCKET + '/' + path, {
+        method: 'POST',
+        body: file,
+        contentType: file.type,
+        upsert: true
+      }).then(function () { return path; });
+    },
+
+    // A link that works for a few minutes and then stops working.
+    signedUrl: function (path, seconds) {
+      return storageFetch('/object/sign/' + PHOTO_BUCKET + '/' + path, {
+        method: 'POST',
+        json: true,
+        body: JSON.stringify({ expiresIn: seconds || 3600 })
+      }).then(function (body) {
+        if (!body || !body.signedURL) throw fail(500, { message: 'No signed link came back.' });
+        return FL.config().then(function (cfg) {
+          return cfg.url + '/storage/v1' + body.signedURL;
+        });
+      });
+    },
+
+    remove: function (path) {
+      return storageFetch('/object/' + PHOTO_BUCKET + '/' + path, { method: 'DELETE' })
+        .then(function () { return true; });
+    }
+  };
+
+  /* ----------------------------------------------------- the share door */
+  //
+  // The one thing a signed-out visitor may ask for. Not the table: a function
+  // that answers for a single row its owner marked public, and returns only
+  // the columns that belong on a boarding pass. Never the note.
+
+  function sharedFlight(shareId) {
+    return call('/rest/v1/rpc/shared_flight', {
+      method: 'POST',
+      body: { share_id: shareId }
+    }).then(function (rows) {
+      return rows && rows.length ? rows[0] : null;
+    });
+  }
+
   FL.auth = auth;
   FL.flights = flights;
+  FL.photos = photos;
+  FL.sharedFlight = sharedFlight;
   FL.describeError = describe;
 })();

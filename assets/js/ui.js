@@ -137,14 +137,49 @@
     paint();
   }
 
-  // Every page has the same switch in the same corner, so wire it here once
-  // rather than asking each page script to remember.
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      mountThemeToggle(document.getElementById('theme-toggle'));
-    });
-  } else {
+  /* ---------------------------------------------------------------- topbar */
+
+  // The bar has no background until the page has been scrolled past the top,
+  // so the first screen reads as one image rather than a strip and a page.
+  function watchTopbar() {
+    var bar = document.querySelector('.topbar');
+    if (!bar) return;
+    var ticking = false;
+
+    function settle() {
+      bar.setAttribute('data-scrolled', window.scrollY > 8 ? 'true' : 'false');
+      ticking = false;
+    }
+
+    window.addEventListener('scroll', function () {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(settle);
+    }, { passive: true });
+
+    settle();
+  }
+
+  // Every page has the same switches in the same corner, so wire them here
+  // once rather than asking each page script to remember.
+  function ready() {
     mountThemeToggle(document.getElementById('theme-toggle'));
+    watchTopbar();
+
+    // The language switch only exists if the localisation module was loaded.
+    // Until then its slot in the top bar stays hidden rather than showing an
+    // empty button.
+    var lang = document.getElementById('lang-toggle');
+    if (lang && FL.i18n && typeof FL.i18n.mountToggle === 'function') {
+      lang.hidden = false;
+      FL.i18n.mountToggle(lang);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ready);
+  } else {
+    ready();
   }
 
   FL.ui = {

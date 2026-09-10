@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A shared flight — FL350</title>
+<meta name="description" content="One boarding pass, shared from a private FL350 logbook.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0b1220">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap">
+<link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="/assets/css/rtl.css">
+<script src="/assets/js/boot.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to the content</a>
+
+<div class="sky" aria-hidden="true"><div class="sky-stars"></div></div>
+
+<header class="topbar">
+  <a class="wordmark" href="/">FL<span class="n">350</span> <small>logbook</small></a>
+  <div class="topbar-spacer"></div>
+  <button type="button" class="btn btn-ghost" id="lang-toggle" hidden></button>
+  <button type="button" class="btn btn-ghost" id="theme-toggle" aria-pressed="false" title="Switch theme"></button>
+  <a class="btn btn-sm" href="/login?mode=signup">Start your own</a>
+</header>
+
+<main id="main" class="page">
+  <section class="hero">
+    <p class="eyebrow">Shared boarding pass</p>
+    <h1 class="heading" id="share-title">Opening the link…</h1>
+    <p class="caption mt-12" id="share-sub"></p>
+  </section>
+
+  <div id="share-pass"></div>
+
+  <section class="card card-pad mt-24">
+    <hr class="rule">
+    <h2 class="heading">What is and is not in this link</h2>
+    <p class="prose mt-12">
+      The owner of this flight switched sharing on for this one row. The link
+      shows the flight as it would be printed on a boarding pass — airline,
+      number, route, date, aircraft, seat — and nothing else.
+    </p>
+    <p class="prose mt-12">
+      Their private note is not here, and it cannot be. Sharing does not open
+      the table: a stranger still has no rights on it at all. This page asks a
+      single function for a single row by its id, and that function only ever
+      returns the columns above, only for a row whose owner marked it public.
+    </p>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="footer-in">
+    <span><strong>FL350</strong> — a private flight log.</span>
+    <span class="topbar-spacer"></span>
+    <a href="/">What this is</a>
+    <a href="/login?mode=signup">Create a locker</a>
+  </div>
+</footer>
+
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+<script src="/assets/js/config.js" defer></script>
+<script src="/assets/js/strings.js" defer></script>
+<script src="/assets/js/i18n.js" defer></script>
+<script src="/assets/js/ui.js" defer></script>
+<script src="/assets/js/airports.js" defer></script>
+<script src="/assets/js/pass.js" defer></script>
+<script src="/assets/js/supabase.js" defer></script>
+<script src="/assets/js/share.js" defer></script>
+</body>
+</html>

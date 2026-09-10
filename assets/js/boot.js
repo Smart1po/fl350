@@ -22,6 +22,19 @@
     /* storage refused; the media query still decides */
   }
 
+  // The reading direction has to be right in the very first frame. i18n.js
+  // sets the same two attributes when it loads, but it is a deferred script,
+  // and an Arabic reader would otherwise watch the whole page swap sides.
+  try {
+    var lang = localStorage.getItem('fl350.lang');
+    if (lang === 'ar' || lang === 'en') {
+      html.setAttribute('lang', lang);
+      html.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+    }
+  } catch (e) {
+    /* the default in the markup stands */
+  }
+
   if (html.getAttribute('data-gated') !== 'true') return;
 
   var hasSession = false;

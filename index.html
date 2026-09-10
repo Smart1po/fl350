@@ -8,15 +8,22 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#0b1220">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap">
 <link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="/assets/css/rtl.css">
 <script src="/assets/js/boot.js"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to the content</a>
 
+<div class="sky" aria-hidden="true"><div class="sky-stars"></div></div>
+
 <header class="topbar">
   <a class="wordmark" href="/">FL<span class="n">350</span> <small>logbook</small></a>
   <div class="topbar-spacer"></div>
+  <button type="button" class="btn btn-ghost" id="lang-toggle" hidden></button>
   <button type="button" class="btn btn-ghost" id="theme-toggle" aria-pressed="false" title="Switch theme"></button>
   <a class="btn btn-sm" href="/login">Sign in</a>
 </header>
@@ -90,20 +97,21 @@
   </section>
 
   <section aria-labelledby="how-title" class="stack">
-    <h2 class="heading" id="how-title">How it works</h2>
+    <hr class="rule">
+      <h2 class="heading" id="how-title">How it works</h2>
     <div class="three">
       <div class="card card-pad">
-        <div class="num">1</div>
+        <p class="num">01</p>
         <h3>Make an account</h3>
         <p>An email and a password. That account is the key to exactly one locker — yours.</p>
       </div>
       <div class="card card-pad">
-        <div class="num">2</div>
+        <p class="num">02</p>
         <h3>Add your flights</h3>
         <p>Flight number, route, date, aircraft, seat. Type <span class="mono">KU 681</span> and the airline fills itself in.</p>
       </div>
       <div class="card card-pad">
-        <div class="num">3</div>
+        <p class="num">03</p>
         <h3>It stays yours</h3>
         <p>Search it, edit it, delete it. Sign out and back in on any device and it is all still there.</p>
       </div>
@@ -111,6 +119,7 @@
   </section>
 
   <section aria-labelledby="lock-title" class="card card-pad stack-s">
+    <hr class="rule">
     <h2 class="heading" id="lock-title">About the lock</h2>
     <p class="prose">
       Privacy here is not a filter in the page — a filter can be taken off. Every
@@ -138,6 +147,8 @@
   </div>
 </footer>
 
+<script src="/assets/js/strings.js" defer></script>
+<script src="/assets/js/i18n.js" defer></script>
 <script src="/assets/js/ui.js" defer></script>
 </body>
 </html>

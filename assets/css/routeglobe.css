@@ -1,0 +1,147 @@
+/* ==========================================================================
+   FL350 — the route globe.
+
+   Its own file because it is the only place on the site that needs
+   SVG-specific properties, and app.css has no business knowing about
+   stroke-linejoin.
+
+   Every colour here comes from a token in app.css, so the globe follows the
+   theme without this file ever naming light or dark. The bare numbers are
+   viewBox units, not pixels: the drawing is authored in a 400 x 400 box and
+   scaled by its container, so a unit is whatever 1/400th of the width
+   happens to be.
+   ========================================================================== */
+
+.rg {
+  /* stroke weights, kept together so the whole drawing can be retuned from
+     one place. the two hairlines are device pixels because they pair with
+     vector-effect below; the rest are viewBox units, which inside an SVG is
+     what a CSS px means. */
+  --rg-hair:   0.75;
+  --rg-limb:   1;
+  --rg-arc-1:  1.3px;
+  --rg-arc-2:  2px;
+  --rg-arc-3:  2.8px;
+  --rg-glow-1: 6px;
+  --rg-glow-2: 8px;
+  --rg-glow-3: 10px;
+
+  /* how tightly the member's routes sit on the sphere. a locker of Gulf hops
+     covers a patch about a fortieth of the width a round-the-world one does,
+     and a glow sized for the second is a smudge over the first, so the two
+     multipliers below are set from JS once the spread is known. 1 is the
+     full-globe weight. */
+  --rg-k: 1;
+  --rg-g: 1;
+
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+/* the globe never grows past a comfortable reading width even on a 1120px
+   page — a full-bleed sphere reads as a background, not as an object. */
+.rg-frame {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.rg-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* --- the sphere ------------------------------------------------------- */
+
+/* the fill is a gradient defined per instance in the markup, because the id
+   it is referenced by has to be unique on the page. */
+.rg-stop-hi { stop-color: hsl(var(--panel)); }
+.rg-stop-lo { stop-color: hsl(var(--bg)); }
+
+.rg-limb-ring {
+  fill: none;
+  stroke: hsl(var(--border-strong));
+  stroke-width: var(--rg-limb);
+  vector-effect: non-scaling-stroke;
+}
+
+/* --- the graticule ---------------------------------------------------- */
+
+/* non-scaling-stroke is what keeps these a hairline: without it a 560px
+   globe would draw them nearly twice as thick as a 320px one. */
+.rg-grat path {
+  fill: none;
+  stroke: hsl(var(--border-strong) / 0.5);
+  stroke-width: var(--rg-hair);
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.rg-grat .rg-equator { stroke: hsl(var(--border-strong) / 0.85); }
+
+/* --- the routes ------------------------------------------------------- */
+
+/* butt caps, not round: an arc that runs off the visible hemisphere is cut
+   at the limb, and a round cap there bulges past the edge of the sphere. at
+   the airport end the dot covers the flat end anyway. */
+.rg-arc,
+.rg-glow {
+  fill: none;
+  stroke-linecap: butt;
+  stroke-linejoin: round;
+}
+
+/* the glow is a second, wider, nearly transparent copy of the same path
+   rather than an SVG filter — a filter would re-rasterise the whole layer on
+   every frame of the draw-in, which is exactly when it can least afford to. */
+.rg-arc  { stroke: hsl(var(--accent)); }
+.rg-glow { stroke: hsl(var(--accent) / 0.18); }
+
+.rg-arc.rg-w1  { stroke-width: calc(var(--rg-arc-1) * var(--rg-k)); }
+.rg-arc.rg-w2  { stroke-width: calc(var(--rg-arc-2) * var(--rg-k)); }
+.rg-arc.rg-w3  { stroke-width: calc(var(--rg-arc-3) * var(--rg-k)); }
+.rg-glow.rg-w1 { stroke-width: calc(var(--rg-glow-1) * var(--rg-g)); }
+.rg-glow.rg-w2 { stroke-width: calc(var(--rg-glow-2) * var(--rg-g)); }
+.rg-glow.rg-w3 { stroke-width: calc(var(--rg-glow-3) * var(--rg-g)); }
+
+/* --- the airports ----------------------------------------------------- */
+
+.rg-dot {
+  fill: hsl(var(--accent));
+  stroke: hsl(var(--panel));
+  stroke-width: 1;
+}
+
+/* the halo is a hair darker than the sphere in both themes, so a code stays
+   readable where it crosses an arc without turning into a sticker. */
+.rg-label {
+  /* text-anchor start and end are relative to the writing direction, so on
+     an Arabic page every label would jump to the wrong side of its dot. an
+     IATA code is Latin whatever the page around it is doing. */
+  direction: ltr;
+  unicode-bidi: isolate;
+
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  fill: hsl(var(--fg));
+  stroke: hsl(var(--bg));
+  stroke-width: 3;
+  paint-order: stroke fill;
+}
+
+/* on a narrow phone the globe is small enough that a proportional label
+   drops under ten pixels, so it gets a little of the width back. */
+@media (max-width: 480px) {
+  .rg-label { font-size: 17px; stroke-width: 4; }
+}
+
+/* --- the caption ------------------------------------------------------ */
+
+.rg-caption {
+  margin: 0;
+  text-align: center;
+  text-wrap: balance;
+}

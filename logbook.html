@@ -8,7 +8,13 @@
 <meta name="theme-color" content="#0b1220">
 <meta name="robots" content="noindex">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap">
 <link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="/assets/css/rtl.css">
+<link rel="stylesheet" href="/assets/css/routeglobe.css">
+<link rel="stylesheet" href="/assets/css/windowseat.css">
 <!-- runs before anything paints: sends a signed-out visitor to /login -->
 <script src="/assets/js/boot.js"></script>
 </head>
@@ -19,6 +25,7 @@
   <a class="wordmark" href="/">FL<span class="n">350</span> <small>logbook</small></a>
   <div class="topbar-spacer"></div>
   <span class="topbar-who" id="topbar-who"></span>
+  <button type="button" class="btn btn-ghost" id="lang-toggle" hidden></button>
   <button type="button" class="btn btn-ghost" id="theme-toggle" aria-pressed="false" title="Switch theme"></button>
   <button type="button" class="btn btn-ghost" id="sign-out">Sign out</button>
 </header>
@@ -35,6 +42,8 @@
       <span>Add a flight</span>
     </button>
   </section>
+
+  <section id="globe" class="globe" hidden aria-label="A globe of your routes"></section>
 
   <dl class="stats" id="stats" hidden></dl>
 
@@ -59,6 +68,13 @@
         <option value="oldest">Oldest first</option>
         <option value="longest">Longest first</option>
       </select>
+    </div>
+    <div class="field">
+      <span class="field-label" aria-hidden="true">&nbsp;</span>
+      <button type="button" class="btn btn-outline" id="export-csv">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 4v11m0 0-3.5-3.5M12 15l3.5-3.5"/><path d="M5 17v2.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V17"/></svg>
+        <span>Export</span>
+      </button>
     </div>
   </div>
 
@@ -146,6 +162,16 @@
         <p class="field-error" id="f-note-error"></p>
       </div>
 
+      <div class="field">
+        <label for="f-photo">A photograph <span class="field-optional">— optional</span></label>
+        <input class="input-file" type="file" id="f-photo"
+               accept="image/jpeg,image/png,image/webp,image/avif"
+               aria-describedby="f-photo-hint f-photo-error">
+        <p class="field-hint" id="f-photo-hint">JPEG, PNG, WebP or AVIF, up to 5 MB. It goes into a private bucket that only your own account can open — never a public address.</p>
+        <p class="field-error" id="f-photo-error"></p>
+        <div class="photo-preview" id="f-photo-preview"></div>
+      </div>
+
     </div>
 
     <div class="sheet-foot">
@@ -169,14 +195,44 @@
   </div>
 </dialog>
 
+<!-- ===================== share one flight ===================== -->
+<dialog class="sheet" id="share-sheet" aria-labelledby="share-sheet-title">
+  <div class="sheet-head">
+    <h2 id="share-sheet-title">Shared</h2>
+  </div>
+  <div class="sheet-body stack-s">
+    <p class="caption" id="share-what"></p>
+    <div class="field">
+      <label class="field-label" for="share-link">The link</label>
+      <input class="input mono ltr" id="share-link" readonly>
+    </div>
+    <p class="form-note">
+      <strong>This does not open your table.</strong> A stranger with the link gets one row,
+      through one function that only ever returns what is printed on a boarding pass. Your
+      note is not among those columns and cannot be. Switch sharing off and the link stops
+      answering immediately.
+    </p>
+  </div>
+  <div class="sheet-foot">
+    <button type="button" class="btn btn-danger" id="share-stop"><span>Stop sharing</span></button>
+    <button type="button" class="btn btn-outline" id="share-close"><span>Done</span></button>
+    <button type="button" class="btn" id="share-copy"><span>Copy link</span></button>
+  </div>
+</dialog>
+
 <datalist id="iata-list"></datalist>
 <datalist id="airline-list"></datalist>
 
 <div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
 
 <script src="/assets/js/config.js" defer></script>
+<script src="/assets/js/strings.js" defer></script>
+<script src="/assets/js/i18n.js" defer></script>
 <script src="/assets/js/ui.js" defer></script>
 <script src="/assets/js/airports.js" defer></script>
+<script src="/assets/js/routeglobe.js" defer></script>
+<script src="/assets/js/windowseat.js" defer></script>
+<script src="/assets/js/pass.js" defer></script>
 <script src="/assets/js/supabase.js" defer></script>
 <script src="/assets/js/session.js" defer></script>
 <script src="/assets/js/logbook.js" defer></script>

@@ -1,0 +1,718 @@
+/* ==========================================================================
+   FL350 · window seat — the cabin window at cruise.
+
+   This sheet owns two colour worlds and keeps them apart on purpose.
+
+   The CABIN is a surface you are sitting inside, so it follows the interface
+   theme like every other surface in the product: a pale warm grey by day, a
+   dimmed cabin at night. The SKY is not a surface. It is what is outside the
+   aeroplane at the hour that flight was in the air, so it is chosen by the
+   date and the latitude of the route and it does not care which theme the
+   member picked. Mixing the two would be the thing that makes it look fake.
+
+   Depths are written as unitless numbers because CSS calc cannot divide one
+   length by another, and each plate needs its distance divided by the
+   perspective to work out how far to scale up.
+
+   Nothing here loads. The cloud deck arrives as a canvas data: URI and the
+   stars as an SVG data: URI, both set from windowseat.js.
+   ========================================================================== */
+
+.ws {
+  /* --- the cabin, light theme ----------------------------------------- */
+  --ws-cabin:      36 12% 84%;
+  --ws-cabin-2:    34 11% 76%;
+  --ws-cabin-3:    36 16% 91%;
+  --ws-cabin-edge: 32 10% 60%;
+  --ws-shadow:     28 20% 22%;
+
+  --ws-ink:        30 14% 18%;
+  --ws-ink-dim:    30  8% 38%;
+  --ws-chip:       36 22% 96%;
+  --ws-chip-bd:    32 10% 66%;
+
+  /* the default star tint; the two dark skies refine it below */
+  --ws-star:      212 30% 98%;
+
+  /* How wide the sun's bloom spreads along the horizon. Its height and its
+     position come from the elevation, and windowseat.js writes those.
+
+     Careful with these numbers. Every plate is three viewports wide and tall,
+     so a percentage here is a third of what it looks like: 12% of the plate
+     is a bloom radius of a bit over a third of the frame. */
+  --ws-glow-w:    12%;
+
+  /* --- the wing -------------------------------------------------------- */
+  --ws-wing:      218  9% 76%;
+  --ws-wing-lit:  216 12% 90%;
+  --ws-wing-dark: 220 10% 54%;
+  --ws-wing-line: 220 12% 42%;
+
+  /* --- how deep the scene runs ----------------------------------------- */
+  --ws-p:          900;    /* perspective distance, in px */
+  --ws-z-sky:    -2400;
+  --ws-z-stars:  -2280;
+  --ws-z-glow:   -1500;
+  --ws-z-cirrus:  -820;
+
+  --ws-deck-drop:  480;    /* how far below the eye the cloud deck lies */
+  /* And how far forward it is pushed. This one matters: a horizontal plane
+     centred on the eye has half of itself BEHIND the eye, and the half behind
+     projects back through the vanishing point as hard inverted wedges above
+     the horizon. Pushed forward by more than its own half-width, every part
+     of it is in front of the eye and the projection behaves. */
+  --ws-deck-push: -1300;
+
+  /* Rotating the head does not on its own make anything parallax — only
+     moving it does. The eye is not at the neck pivot, so a real look to the
+     side carries the eye sideways too. This is how far, and it is the whole
+     reason the layers separate. */
+  --ws-neck:        96;
+
+  /* Half the eye separation, in scene px. A literal 63 mm would be wrong
+     here: the scene's depths are compressed, so a true-scale offset puts the
+     sky at a divergence that hurts. This is tuned to the compression. */
+  --ws-ipd:         32;
+
+  /* --- window geometry --------------------------------------------------
+     Sized in viewport units rather than percentages, so that other pieces can
+     be derived from it. A percentage inside this token would resolve against
+     the width for `width` and against the height for `height`, which makes
+     any derived measurement quietly wrong. --ws-eye-w carries the one thing
+     that changes: an eye is half the screen once the view is split. */
+  --ws-eye-w:     100vw;
+  --ws-win-w:     min(calc(var(--ws-eye-w) * .78), 48vh);
+  --ws-win-r:     42% / 28%;
+  --ws-bezel:     18px;
+
+  position: fixed;
+  inset: 0;
+  z-index: 60;               /* above the toasts, which sit at 50 */
+  overflow: hidden;
+  background: hsl(var(--ws-cabin));
+  color: hsl(var(--ws-ink));
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .ws {
+    --ws-cabin:      222 16% 15%;
+    --ws-cabin-2:    222 18% 11%;
+    --ws-cabin-3:    220 14% 21%;
+    --ws-cabin-edge: 218 14% 30%;
+    --ws-shadow:     222 40%  4%;
+
+    --ws-ink:        210 24% 94%;
+    --ws-ink-dim:    215 14% 66%;
+    --ws-chip:       222 20% 19%;
+    --ws-chip-bd:    217 18% 33%;
+
+    --ws-wing:      220 10% 46%;
+    --ws-wing-lit:  216 12% 62%;
+    --ws-wing-dark: 222 14% 28%;
+    --ws-wing-line: 222 16% 20%;
+  }
+}
+
+:root[data-theme="dark"] .ws {
+  --ws-cabin:      222 16% 15%;
+  --ws-cabin-2:    222 18% 11%;
+  --ws-cabin-3:    220 14% 21%;
+  --ws-cabin-edge: 218 14% 30%;
+  --ws-shadow:     222 40%  4%;
+
+  --ws-ink:        210 24% 94%;
+  --ws-ink-dim:    215 14% 66%;
+  --ws-chip:       222 20% 19%;
+  --ws-chip-bd:    217 18% 33%;
+
+  --ws-wing:      220 10% 46%;
+  --ws-wing-lit:  216 12% 62%;
+  --ws-wing-dark: 222 14% 28%;
+  --ws-wing-line: 222 16% 20%;
+}
+
+/* while the scene is up nothing behind it should scroll */
+html.ws-open, html.ws-open body { overflow: hidden; }
+
+/* ==========================================================================
+   Skies — one set of tokens per hour of the day.
+
+   Picked in windowseat.js from the sun's elevation for that date and route,
+   and written onto the scene as data-sky.
+   ========================================================================== */
+
+.ws[data-sky="night"] {
+  --ws-zenith:  232 60%  6%;
+  --ws-mid:     228 54% 10%;
+  --ws-horizon: 222 46% 16%;
+  --ws-haze:    220 30% 21%;
+  --ws-under:   224 34% 12%;
+  --ws-glow:    212 44% 34%;
+  --ws-glow-o:  .40;
+  --ws-cirrus:  220 26% 40%;
+  --ws-cirrus-o:.30;
+  --ws-deck:    226 24% 18%;
+  --ws-deck-lit:220 22% 44%;
+  --ws-star:    212 30% 98%;
+  --ws-star-o:  1;
+  --ws-wash-o:  .10;
+}
+
+.ws[data-sky="dawn"] {
+  --ws-zenith:  246 56% 13%;
+  --ws-mid:     240 50% 22%;
+  --ws-horizon: 264 40% 34%;
+  --ws-haze:    272 34% 44%;
+  --ws-under:   258 28% 22%;
+  --ws-glow:     22 78% 52%;
+  --ws-glow-o:  .48;
+  --ws-cirrus:  282 34% 56%;
+  --ws-cirrus-o:.34;
+  --ws-deck:    252 24% 24%;
+  --ws-deck-lit:276 32% 56%;
+  --ws-star:    268 24% 96%;
+  --ws-star-o:  .45;
+  --ws-wash-o:  .16;
+}
+
+.ws[data-sky="sunrise"] {
+  --ws-zenith:  214 64% 38%;
+  --ws-mid:     206 60% 57%;
+  --ws-horizon:  32 84% 63%;
+  --ws-haze:     34 74% 74%;
+  --ws-under:    28 40% 52%;
+  --ws-glow:     40 96% 62%;
+  --ws-glow-o:  .88;
+  --ws-cirrus:   28 88% 78%;
+  --ws-cirrus-o:.46;
+  --ws-deck:     28 36% 58%;
+  --ws-deck-lit: 44 76% 96%;
+  --ws-star-o:  0;
+  --ws-wash-o:  .22;
+}
+
+.ws[data-sky="day"] {
+  --ws-zenith:  214 76% 29%;
+  --ws-mid:     208 74% 49%;
+  --ws-horizon: 200 62% 79%;
+  --ws-haze:    200 40% 89%;
+  --ws-under:   205 26% 70%;
+  --ws-glow:    200 62% 94%;
+  --ws-glow-o:  .34;
+  --ws-cirrus:  200 40% 96%;
+  --ws-cirrus-o:.40;
+  --ws-deck:    208 26% 74%;
+  --ws-deck-lit:  0  0% 100%;
+  --ws-star-o:  0;
+  --ws-wash-o:  .08;
+}
+
+.ws[data-sky="golden"] {
+  --ws-zenith:  218 58% 28%;
+  --ws-mid:     212 52% 50%;
+  --ws-horizon:  26 88% 58%;
+  --ws-haze:     30 76% 70%;
+  --ws-under:    24 42% 46%;
+  --ws-glow:     32 96% 60%;
+  --ws-glow-o:  .84;
+  --ws-cirrus:   24 84% 72%;
+  --ws-cirrus-o:.48;
+  --ws-deck:     24 42% 52%;
+  --ws-deck-lit: 38 78% 94%;
+  --ws-star-o:  0;
+  --ws-wash-o:  .24;
+}
+
+/* ==========================================================================
+   The two eyes
+   ========================================================================== */
+
+.ws-eyes {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 0;
+  touch-action: none;        /* the drag is a look, never a page scroll */
+  cursor: grab;
+}
+.ws-eyes:active { cursor: grabbing; }
+
+/* This is a focus stop, so it needs a ring — and the ring has to be drawn
+   inside, because the element is flush with every edge of the screen. */
+.ws-eyes:focus-visible {
+  outline: 2px solid hsl(var(--accent));
+  outline-offset: -4px;
+  border-radius: 0;
+}
+
+.ws[data-vr="1"] { --ws-eye-w: 50vw; }
+.ws[data-vr="1"] .ws-eyes { gap: 2px; }
+
+.ws-eye {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  background: hsl(var(--ws-cabin));
+}
+
+.ws-view {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  perspective: calc(var(--ws-p) * 1px);
+  /* a floor under the scene so a rotation can never show a seam */
+  background: linear-gradient(to bottom, hsl(var(--ws-zenith)), hsl(var(--ws-under)));
+}
+
+/* Two 3D contexts, not one. The cloud deck is a horizontal plane and the sky
+   plates are vertical ones, so in a single preserve-3d context they intersect
+   — and intersecting planes are exactly where browsers stop sorting reliably
+   and start showing seams. Kept apart they simply paint in document order,
+   which is also the right order: the deck is nearer than the sky. They carry
+   identical transforms so the horizon stays registered between them. */
+.ws-world,
+.ws-ground {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/* ==========================================================================
+   The plates — flat cards hung at four different distances
+   ========================================================================== */
+
+/* Centred with negative insets rather than a margin, because a percentage
+   margin resolves against the container's WIDTH on every side — including
+   margin-top, which would put the horizon in the wrong place on any view that
+   is not square. */
+.ws-plate {
+  position: absolute;
+  left: -100%;
+  top: -100%;
+  width: 300%;
+  height: 300%;
+  transform-origin: 50% 50%;
+  backface-visibility: hidden;
+}
+
+.ws-sky {
+  transform:
+    translateZ(calc(var(--ws-z-sky) * 1px))
+    scale(calc((var(--ws-p) - var(--ws-z-sky)) / var(--ws-p)));
+  /* The stops are bunched around the middle because the plate is three
+     viewports tall: at rest the frame only shows 33% to 67% of it, and the
+     pitch clamp opens that out to roughly 10% and 90%. Spread evenly, the
+     zenith would sit off the top of the frame and never be seen at all. */
+  background-image: linear-gradient(
+    to bottom,
+    hsl(var(--ws-zenith))   0%,
+    hsl(var(--ws-zenith))  18%,
+    hsl(var(--ws-mid))     40%,
+    hsl(var(--ws-horizon)) 47%,
+    hsl(var(--ws-haze))    50%,
+    hsl(var(--ws-under))   55%,
+    hsl(var(--ws-under))  100%
+  );
+}
+
+/* The stars belong to the sky, not to the screen. They are on a plate inside
+   the rotating world so that looking around moves the head past them and not
+   them past the head. */
+.ws-stars {
+  transform:
+    translateZ(calc(var(--ws-z-stars) * 1px))
+    scale(calc((var(--ws-p) - var(--ws-z-stars)) / var(--ws-p)));
+  background-image: var(--ws-stars-img, none);
+  background-size: cover;
+  background-position: 50% 30%;
+  opacity: var(--ws-star-o, 0);
+}
+
+.ws-glow {
+  transform:
+    translateZ(calc(var(--ws-z-glow) * 1px))
+    scale(calc((var(--ws-p) - var(--ws-z-glow)) / var(--ws-p)));
+  background-image: radial-gradient(
+    ellipse var(--ws-glow-w, 34%) var(--ws-glow-h, 20%) at var(--ws-glow-x, 50%) 50%,
+    hsl(var(--ws-glow) / var(--ws-glow-o)) 0%,
+    hsl(var(--ws-glow) / calc(var(--ws-glow-o) * .35)) 38%,
+    hsl(var(--ws-glow) / 0) 72%
+  );
+}
+
+/* Cirrus is streaky rather than puffy, so stretched radial gradients read
+   better than a texture and cost nothing to make. */
+.ws-cirrus {
+  transform:
+    translateZ(calc(var(--ws-z-cirrus) * 1px))
+    scale(calc((var(--ws-p) - var(--ws-z-cirrus)) / var(--ws-p)));
+  opacity: var(--ws-cirrus-o, .4);
+  background-image:
+    radial-gradient(ellipse 16% 1.1% at 22% 44.5%, hsl(var(--ws-cirrus) / .55), hsl(var(--ws-cirrus) / 0) 70%),
+    radial-gradient(ellipse 11% 0.8% at 38% 46.2%, hsl(var(--ws-cirrus) / .45), hsl(var(--ws-cirrus) / 0) 70%),
+    radial-gradient(ellipse 20% 1.4% at 58% 43.2%, hsl(var(--ws-cirrus) / .50), hsl(var(--ws-cirrus) / 0) 72%),
+    radial-gradient(ellipse  9% 0.7% at 71% 46.8%, hsl(var(--ws-cirrus) / .42), hsl(var(--ws-cirrus) / 0) 70%),
+    radial-gradient(ellipse 14% 1.0% at 84% 44.0%, hsl(var(--ws-cirrus) / .48), hsl(var(--ws-cirrus) / 0) 70%),
+    radial-gradient(ellipse 24% 2.0% at 46% 47.4%, hsl(var(--ws-cirrus) / .30), hsl(var(--ws-cirrus) / 0) 74%),
+    radial-gradient(ellipse 18% 1.6% at  9% 47.0%, hsl(var(--ws-cirrus) / .28), hsl(var(--ws-cirrus) / 0) 74%);
+}
+
+/* The cloud deck is the one thing that is genuinely a horizontal plane: laid
+   flat with rotateX and dropped below the eye, so looking down looks down at
+   it. Its far edge is hazed out into the horizon so the plane never shows a
+   cut end. */
+.ws-deck {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /* Sized to what the pitch clamp can actually reach and not a pixel more.
+     The near edge lands about 44 degrees below the horizon; the bottom of the
+     window is 13 and the clamp adds 26, so it is never reached. Guessing large
+     instead would cost tens of megabytes of texture on a phone for a strip of
+     cloud nobody can look at. */
+  width: 3400px;
+  height: 3400px;
+  margin: -1700px 0 0 -1700px;
+  transform-origin: 50% 50%;
+  transform:
+    translate3d(0, calc(var(--ws-deck-drop) * 1px), calc(var(--ws-deck-push) * 1px))
+    rotateX(90deg);
+  background-color: hsl(var(--ws-deck));
+  background-image: var(--ws-deck-img, none);
+  background-repeat: repeat;
+  background-size: 380px 380px;
+  backface-visibility: hidden;
+}
+
+.ws-deck-fade {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+    to bottom,
+    hsl(var(--ws-haze))     0%,
+    hsl(var(--ws-haze))    12%,
+    hsl(var(--ws-haze) / 0) 34%
+  );
+}
+
+/* ==========================================================================
+   The wing
+
+   Outside the rotating world on purpose. The window frame is bolted to the
+   fuselage and is drawn as the edge of the picture, so the wing — bolted to
+   the same fuselage — has to behave the same way and stay roughly put while
+   the sky sweeps past it. It gets a damped share of the look, not the whole
+   rotation.
+   ========================================================================== */
+
+/* Sized off the window rather than the screen, so how much wing sits in the
+   frame is the same on a phone and on a desktop. Its box also keeps the
+   1000 x 420 of the drawing, which is why the drawing can be stretched to fit
+   with preserveAspectRatio="none" and come out undistorted. */
+.ws-wing {
+  --ws-wing-w: calc(var(--ws-win-w) * 3.2);
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  width: var(--ws-wing-w);
+  height: calc(var(--ws-wing-w) * .42);
+  margin-left: calc(var(--ws-wing-w) * -.42);
+  margin-bottom: calc(var(--ws-wing-w) * -.40);
+  will-change: transform;
+  pointer-events: none;
+}
+.ws-wing svg { width: 100%; height: 100%; display: block; }
+
+.ws-wing-skin  { fill: hsl(var(--ws-wing)); }
+.ws-wing-lit   { fill: hsl(var(--ws-wing-lit)); }
+.ws-wing-dark  { fill: hsl(var(--ws-wing-dark)); }
+.ws-wing-line  { fill: none; stroke: hsl(var(--ws-wing-line) / .5); stroke-width: 2; }
+/* the sky's own light, laid back over the metal */
+.ws-wing-wash  { fill: hsl(var(--ws-glow)); opacity: var(--ws-wash-o, .12); }
+
+/* ==========================================================================
+   The window itself
+
+   Everything outside the aperture is cabin wall, painted by one very large
+   solid spread on the aperture's own box-shadow. No blur, so it is a single
+   cheap fill rather than anything the compositor has to think about.
+   ========================================================================== */
+
+.ws-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* One box sets the window's size and every other piece is placed as a share
+   of it. Doing it the other way round — each piece sized off --ws-win-w —
+   goes wrong quietly, because a percentage inside that token resolves against
+   the width for `left` and against the height for `height`. */
+.ws-win {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--ws-win-w);
+  aspect-ratio: 46 / 66;
+  transform: translate(-50%, -50%);
+}
+
+.ws-aperture {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--ws-win-r);
+  box-shadow:
+    0 0 0 120vmax hsl(var(--ws-cabin)),
+    inset 0 0 0 1px hsl(var(--ws-cabin-edge) / .8),
+    inset 0 20px 36px -16px hsl(var(--ws-shadow) / .55),
+    inset 0 -14px 28px -16px hsl(var(--ws-shadow) / .40),
+    inset 14px 0 30px -18px hsl(var(--ws-shadow) / .35),
+    inset -14px 0 30px -18px hsl(var(--ws-shadow) / .35);
+}
+
+/* the pane: one soft diagonal sheen and a hairline along the top inner edge */
+.ws-pane {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image:
+    linear-gradient(148deg,
+      hsl(var(--ws-cabin-3) / .16) 0%,
+      hsl(var(--ws-cabin-3) / .04) 26%,
+      hsl(var(--ws-cabin-3) / 0)  46%);
+  box-shadow: inset 0 1px 0 hsl(var(--ws-cabin-3) / .35);
+}
+
+/* the breather hole, low and centred in the middle pane */
+.ws-breather {
+  position: absolute;
+  left: 50%;
+  bottom: 6%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: hsl(var(--ws-shadow) / .55);
+  box-shadow:
+    inset 0 2px 3px hsl(var(--ws-shadow) / .8),
+    0 1px 0 hsl(var(--ws-cabin-3) / .5);
+}
+
+/* the outer bezel: a ring sitting proud of the wall around the reveal */
+.ws-bezel {
+  position: absolute;
+  inset: calc(var(--ws-bezel) * -1);
+  border: 10px solid hsl(var(--ws-cabin-2));
+  border-radius: 42% / 26%;
+  box-shadow:
+    inset 0 1px 0 hsl(var(--ws-cabin-3) / .6),
+    0 1px 2px hsl(var(--ws-shadow) / .28);
+}
+
+/* the shade rail: the channel the blind slides in, one down each side */
+.ws-rail {
+  position: absolute;
+  top: 24%;
+  height: 52%;
+  width: 4px;
+  border-radius: 2px;
+  background: hsl(var(--ws-cabin-2));
+  box-shadow:
+    inset 1px 0 1px hsl(var(--ws-shadow) / .35),
+    inset -1px 0 0 hsl(var(--ws-cabin-3) / .5);
+}
+.ws-rail-l { left:  calc(var(--ws-bezel) * -1 - 5px); }
+.ws-rail-r { right: calc(var(--ws-bezel) * -1 - 5px); }
+
+/* The shade is parked at the top of its travel. It is clipped to the aperture
+   rather than given its own corner radii, because a shade that short cannot
+   reproduce the window's corner curve on its own and the browser would quietly
+   shrink the radii to fit. */
+.ws-shade-clip {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--ws-win-r);
+  overflow: hidden;
+}
+
+.ws-shade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 11%;
+  background-image: linear-gradient(
+    to bottom,
+    hsl(var(--ws-cabin-3)) 0%,
+    hsl(var(--ws-cabin-2)) 78%,
+    hsl(var(--ws-cabin-2)) 100%);
+  box-shadow: 0 2px 5px -1px hsl(var(--ws-shadow) / .40);
+}
+
+.ws-shade-tab {
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 44px;
+  height: 10px;
+  margin-left: -22px;
+  border-radius: 5px;
+  background: hsl(var(--ws-cabin-2));
+  box-shadow:
+    inset 0 1px 0 hsl(var(--ws-cabin-3) / .7),
+    0 1px 2px hsl(var(--ws-shadow) / .3);
+}
+
+/* ==========================================================================
+   The overlay: flight number, route, date, and the altitude the product is
+   named after. It sits on the cabin wall below the window, never over the sky.
+   ========================================================================== */
+
+.ws-hud {
+  position: absolute;
+  left: max(20px, env(safe-area-inset-left));
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity .45s ease;
+}
+.ws[data-looking="1"] .ws-hud { opacity: 0; }
+.ws[data-vr="1"] .ws-hud { display: none; }
+
+.ws-hud-no {
+  font: 600 .75rem/1 var(--mono);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: hsl(var(--accent-text));
+}
+
+.ws-hud-route {
+  margin-top: 8px;
+  font: 650 1.5rem/1 var(--mono);
+  letter-spacing: .04em;
+  color: hsl(var(--ws-ink));
+}
+.ws-hud-route .sep { margin: 0 8px; color: hsl(var(--ws-ink-dim)); }
+
+.ws-hud-sub {
+  margin-top: 8px;
+  font-size: .8125rem;
+  line-height: 1.4;
+  color: hsl(var(--ws-ink-dim));
+}
+
+.ws-hud-right { text-align: right; }
+.ws-hud-fl {
+  font: 650 1.5rem/1 var(--mono);
+  letter-spacing: .06em;
+  color: hsl(var(--ws-ink));
+}
+
+@media (max-width: 520px) {
+  .ws-hud { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .ws-hud-right { text-align: left; }
+  .ws-hud-route, .ws-hud-fl { font-size: 1.25rem; }
+}
+
+/* ==========================================================================
+   Controls
+   ========================================================================== */
+
+.ws-controls {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  opacity: 1;
+  transition: opacity .3s ease;
+}
+.ws[data-looking="1"] .ws-controls { opacity: .35; }
+
+.ws-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid hsl(var(--ws-chip-bd));
+  border-radius: var(--radius-sm);
+  background: hsl(var(--ws-chip) / .82);
+  color: hsl(var(--ws-ink));
+  font-size: .875rem;
+  font-weight: 560;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition: background-color .15s ease, border-color .15s ease;
+}
+.ws-btn:hover { background: hsl(var(--ws-chip)); border-color: hsl(var(--ws-ink-dim)); }
+.ws-btn svg { width: 17px; height: 17px; flex: 0 0 auto; }
+
+.ws-btn[aria-pressed="true"] {
+  background: hsl(var(--accent));
+  border-color: hsl(var(--accent));
+  color: hsl(var(--accent-fg));
+}
+
+.ws-btn:focus-visible {
+  outline: 2px solid hsl(var(--accent));
+  outline-offset: 3px;
+}
+
+@media (max-width: 560px) {
+  /* the labels go to the screen reader only, so the name survives */
+  .ws-btn span {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
+  .ws-btn { padding: 0 11px; }
+}
+
+/* ==========================================================================
+   The landscape hint, only while the headset split is on
+   ========================================================================== */
+
+.ws-hint {
+  position: absolute;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  max-width: 30ch;
+  padding: 10px 16px;
+  border: 1px solid hsl(var(--ws-chip-bd));
+  border-radius: var(--radius-sm);
+  background: hsl(var(--ws-chip) / .9);
+  color: hsl(var(--ws-ink));
+  font-size: .8125rem;
+  text-align: center;
+  display: none;
+}
+@media (orientation: portrait) {
+  .ws[data-vr="1"] .ws-hint { display: block; }
+}
+
+/* ==========================================================================
+   The hook on the boarding pass
+
+   logbook.js owns the pass markup, so this only styles the row it adds: a
+   full-width action above Edit and Delete, because three buttons abreast do
+   not fit a 224px stub.
+   ========================================================================== */
+
+.pass-ws-action { margin-top: auto; }
+.pass-ws-action .btn { width: 100%; }
+.pass-ws-action + .pass-actions { margin-top: 6px; }

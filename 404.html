@@ -8,13 +8,18 @@
 <meta name="theme-color" content="#0b1220">
 <meta name="robots" content="noindex">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap">
 <link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="/assets/css/rtl.css">
 <script src="/assets/js/boot.js"></script>
 </head>
 <body>
 <header class="topbar">
   <a class="wordmark" href="/">FL<span class="n">350</span> <small>logbook</small></a>
   <div class="topbar-spacer"></div>
+  <button type="button" class="btn btn-ghost" id="lang-toggle" hidden></button>
   <button type="button" class="btn btn-ghost" id="theme-toggle" aria-pressed="false" title="Switch theme"></button>
 </header>
 
@@ -29,6 +34,8 @@
   </div>
 </main>
 
+<script src="/assets/js/strings.js" defer></script>
+<script src="/assets/js/i18n.js" defer></script>
 <script src="/assets/js/ui.js" defer></script>
 </body>
 </html>

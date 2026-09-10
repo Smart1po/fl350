@@ -1,0 +1,233 @@
+/* ==========================================================================
+   FL350 — the Arabic side of the interface.
+
+   Loaded after app.css on every page, in both directions, because it carries
+   three things:
+
+     1. the language switch, which exists in English too;
+     2. what Arabic type needs — no tracking, no negative letter-spacing, no
+        mono face under Arabic words, and more leading;
+     3. what the mirrored layout needs beyond what direction: rtl already does
+        for free.
+
+   Grid and flex already reverse themselves from the dir attribute, so the
+   route reads right to left and the stub lands on the other edge without
+   being told. What is written out below is only the physical leftovers in
+   app.css — a margin-left: auto, a border-left, a notch pinned at left: -8px
+   — plus the parts that must NOT mirror: an IATA code, a flight number, a
+   seat, a barcode. Those are islands of Latin inside an Arabic page and are
+   isolated so the bidi algorithm leaves their order alone.
+
+   Same tokens as app.css. No hex, no off-scale spacing.
+   ========================================================================== */
+
+
+/* ==========================================================================
+   The language switch — a two-state control, English and العربية
+   ========================================================================== */
+
+.langswitch {
+  display: inline-flex; align-items: center; gap: 2px;
+  min-height: 38px; padding: 3px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-sm);
+  background: hsl(var(--panel-2));
+  color: hsl(var(--fg-muted));
+  cursor: pointer;
+  transition: border-color .2s ease, background-color .2s ease;
+}
+.langswitch:hover { border-color: hsl(var(--border-strong)); }
+
+.langswitch-face {
+  display: inline-flex; align-items: center;
+  min-height: 30px; padding: 0 10px;
+  border-radius: 6px;
+  font-size: .8125rem; font-weight: 560; line-height: 1;
+  white-space: nowrap;
+  transition: background-color .2s ease, color .2s ease;
+}
+/* the raised face matches .tab in app.css, on purpose: it is the same idea */
+.langswitch-face[data-active="true"] {
+  background: hsl(var(--panel));
+  color: hsl(var(--fg));
+  box-shadow: 0 1px 2px hsl(222 47% 11% / 0.12);
+}
+.langswitch:hover .langswitch-face:not([data-active="true"]) { color: hsl(var(--fg)); }
+
+/* Arabic letters join. Tracking them apart breaks the join, so the Arabic
+   face is never letter-spaced, and is set a shade larger to match the
+   x-height of the Latin one. */
+.langswitch-face[lang="ar"] { letter-spacing: 0; font-size: .875rem; }
+
+/* On a 360px bar there is no room for two languages beside the theme switch
+   and Sign out — especially not in Arabic, where the words are longer. Below
+   560px the control shows only the language it would switch to, and reads as
+   a ghost button. */
+@media (max-width: 559px) {
+  .langswitch {
+    padding: 0;
+    border-color: transparent;
+    background: transparent;
+  }
+  .langswitch:hover { background: hsl(var(--fg) / 0.07); border-color: transparent; }
+  .langswitch-face { min-height: 38px; padding: 0 12px; }
+  .langswitch-face[data-active="true"] { display: none; }
+}
+
+/* The bar was built for three controls and now holds four. Let it fall to a
+   second line rather than push the page sideways on a narrow phone. Nothing
+   moves while the four still fit. */
+.topbar { flex-wrap: wrap; row-gap: 8px; }
+
+
+/* ==========================================================================
+   Arabic type
+   ========================================================================== */
+
+/* Same shape of stack as app.css, with the faces that actually carry Arabic
+   inserted. All of them are already on the reader's machine — the policy on
+   this site allows no font from anywhere else. */
+:root[lang="ar"] {
+  --sans: system-ui, -apple-system, "Segoe UI", "Noto Naskh Arabic", "Geeza Pro", "Dubai", Tahoma, Arial, sans-serif;
+}
+
+/* Arabic sits lower and reaches higher than Latin, so it needs the leading. */
+[lang="ar"] body { line-height: 1.7; }
+
+/* Negative tracking is a Latin display trick. On Arabic it pulls joined
+   letters into each other. */
+[lang="ar"] .display { letter-spacing: 0; line-height: 1.2; }
+[lang="ar"] .heading { letter-spacing: 0; line-height: 1.35; }
+[lang="ar"] .subhead { letter-spacing: 0; }
+[lang="ar"] .state h2 { line-height: 1.4; }
+
+/* The micro-labels are mono, uppercased and tracked wide — three things that
+   do not exist in Arabic typography and one that breaks it. Under Arabic they
+   become small sans labels instead. The values beside them stay mono. */
+[lang="ar"] .eyebrow,
+[lang="ar"] .fact dt,
+[lang="ar"] .stat dt,
+[lang="ar"] .stub-seat dt,
+[lang="ar"] .wordmark small,
+[lang="ar"] .stat dd small {
+  font-family: var(--sans);
+  letter-spacing: 0;
+  text-transform: none;
+}
+[lang="ar"] .eyebrow { font-size: .8125rem; font-weight: 600; }
+[lang="ar"] .fact dt,
+[lang="ar"] .stat dt,
+[lang="ar"] .stub-seat dt { font-size: .75rem; font-weight: 560; }
+[lang="ar"] .wordmark small { font-size: .6875rem; }
+
+
+/* ==========================================================================
+   Islands of Latin inside an Arabic page
+
+   An IATA code, a flight number, a seat and the barcode are printed the same
+   way on every boarding pass in the world. They keep their own direction so
+   the bidi algorithm cannot reorder them, and they keep the mono face so the
+   stats column stays in a straight line.
+   ========================================================================== */
+
+.i18n-ltr,
+[dir="rtl"] .wordmark,
+[dir="rtl"] .route-iata,
+[dir="rtl"] .pass-flightno,
+[dir="rtl"] .stub-seat dd,
+[dir="rtl"] .barcode,
+[dir="rtl"] .three .num,
+[dir="rtl"] .input-code,
+[dir="rtl"] input[type="email"],
+[dir="rtl"] input[type="password"],
+[dir="rtl"] input[type="date"],
+[dir="rtl"] .state-pre {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* The wordmark is three inline-flex children — FL, 350, and the sub-label.
+   Under dir: rtl the flex line reverses and it would read "سجل الرحلات 350 FL".
+   It is a Latin mark: it stays left to right and the Arabic sub-label sits
+   after it. */
+[dir="rtl"] .wordmark { direction: ltr; }
+
+/* A field that only ever takes a Latin token types left to right and is
+   aligned to match, the way a code field is on any airline site. */
+[dir="rtl"] .input-code,
+[dir="rtl"] input[type="email"],
+[dir="rtl"] input[type="password"],
+[dir="rtl"] input[type="date"],
+[dir="rtl"] .state-pre { text-align: left; }
+
+/* A date such as "14 يوليو 2026" is deliberately NOT isolated: with a base
+   direction of rtl the algorithm already puts the day on the right and the
+   year on the left, which is how the date is read aloud in Arabic. */
+
+
+/* ==========================================================================
+   The mirrored layout — the physical leftovers
+   ========================================================================== */
+
+[dir="rtl"] .skip-link { left: auto; right: 16px; }
+
+/* pushed to the far end of the pass head */
+[dir="rtl"] .pass-date { margin-left: 0; margin-right: auto; }
+[dir="rtl"] .sheet-head .btn-ghost { margin-left: 0; margin-right: auto; }
+
+/* The two ends of the route are pinned to the outer edges of the card. In
+   app.css that is done with text-align: right on the arrival end; mirrored,
+   the arrival end is the one on the left. Both are written out physically so
+   the Latin IATA codes inside them, which set their own direction, cannot
+   resolve text-align: start against it and drift back. */
+[dir="rtl"] .route-end { text-align: right; }
+[dir="rtl"] .route-end.to { text-align: left; }
+
+/* The aeroplane flies along the route, so it turns around with it. The glyph
+   in use today is a plan view pointing up and is symmetric about its own
+   centre line, so the flip is invisible on this icon — it is here because the
+   rule belongs to the direction, not to one drawing, and the next icon in
+   that slot will not be symmetric. The directional cue a reader actually uses
+   is the order of the two airports, and that mirrors itself. */
+[dir="rtl"] .route-line svg { transform: translate(-50%, -50%) scaleX(-1); }
+
+/* These two are genuinely handed: a magnifier holds its handle on the outer
+   corner, and the empty-state aeroplane is climbing away from the reader. */
+[dir="rtl"] .search-wrap svg {
+  left: auto; right: 12px;
+  transform: translateY(-50%) scaleX(-1);
+}
+[dir="rtl"] .search-wrap .input { padding-left: 12px; padding-right: 36px; }
+[dir="rtl"] .state-icon svg { transform: scaleX(-1); }
+
+/* The stub. Below 760px it sits under the card, full width, and its
+   perforation and both notches are already symmetric. From 760px up the grid
+   moves it to the left edge, so the tear line and the two notch circles have
+   to move to its right edge with it. */
+@media (min-width: 760px) {
+  [dir="rtl"] .pass-stub {
+    border-left: 0;
+    border-right: 1.5px dashed hsl(var(--border-strong));
+    border-radius: var(--radius) 0 0 var(--radius);
+  }
+  [dir="rtl"] .pass-stub::before { left: auto; right: -8px; }
+  [dir="rtl"] .pass-stub::after {
+    left: auto; right: -8px;
+    top: auto; bottom: -8px;
+  }
+}
+
+/* The toast is marked by a coloured edge on the side it enters from. */
+[dir="rtl"] .toast {
+  border-left: 1px solid hsl(var(--border-strong));
+  border-right: 3px solid hsl(var(--good));
+}
+[dir="rtl"] .toast[data-kind="bad"]  { border-right-color: hsl(var(--bad)); }
+[dir="rtl"] .toast[data-kind="info"] { border-right-color: hsl(var(--accent)); }
+
+/* The loading shimmer sweeps the way the eye reads. */
+[dir="rtl"] .skeleton { animation-name: shimmer-rtl; }
+@keyframes shimmer-rtl {
+  from { background-position: -100% 0; }
+  to   { background-position: 100% 0; }
+}

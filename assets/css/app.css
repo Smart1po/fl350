@@ -33,9 +33,19 @@
   --shadow-card:  0 1px 2px hsl(222 47% 11% / 0.06), 0 8px 24px -12px hsl(222 47% 11% / 0.18);
   --shadow-over:  0 24px 60px -12px hsl(222 47% 11% / 0.32);
 
-  /* --- type ----------------------------------------------------------- */
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Menlo, Consolas, monospace;
+  /* --- type ------------------------------------------------------------
+     Three faces, each with one job. A quiet serif carries the few large
+     lines, a neutral sans carries everything a person reads, and a mono
+     carries anything printed on a ticket. Every one has a real fallback,
+     so the page is still itself if the font service never answers. */
+  --serif: "Instrument Serif", "Iowan Old Style", Palatino, Georgia, "Times New Roman", serif;
+  --sans:  "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono:  "IBM Plex Mono", ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Menlo, Consolas, monospace;
+
+  /* --- motion: unhurried, and one curve everywhere -------------------- */
+  --ease: cubic-bezier(.22, .61, .36, 1);
+  --quick: 180ms;
+  --calm: 420ms;
 
   color-scheme: light;
 }
@@ -104,6 +114,7 @@ dialog:not([open]) { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 
 body {
+  position: relative;
   margin: 0;
   min-height: 100vh;
   background: hsl(var(--bg));
@@ -150,43 +161,75 @@ button, input, select, textarea { font: inherit; color: inherit; }
    Type
    ========================================================================== */
 
-.display { font-size: clamp(2rem, 1.4rem + 3vw, 3.25rem); line-height: 1.05; font-weight: 650; letter-spacing: -.02em; }
-.heading { font-size: 1.5rem;  line-height: 1.25; font-weight: 620; letter-spacing: -.01em; }
-.subhead { font-size: 1.125rem; line-height: 1.4; font-weight: 520; }
-.caption { font-size: .8125rem; line-height: 1.4; color: hsl(var(--fg-muted)); }
+.display {
+  font-family: var(--serif);
+  font-size: clamp(2.5rem, 1.2rem + 5.2vw, 4.75rem);
+  line-height: 1.02;
+  font-weight: 400;
+  letter-spacing: -.015em;
+  text-wrap: balance;
+}
+.heading {
+  font-family: var(--serif);
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 1.875rem);
+  line-height: 1.2; font-weight: 400; letter-spacing: -.01em;
+}
+.subhead { font-size: 1.125rem; line-height: 1.45; font-weight: 500; }
+.caption { font-size: .8125rem; line-height: 1.45; color: hsl(var(--fg-muted)); }
 .prose   { max-width: 62ch; color: hsl(var(--fg-muted)); }
 .mono    { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
+/* Codes, numbers and anything printed on a ticket keep Latin order and
+   direction even when the page around them is Arabic. */
+.ltr { direction: ltr; unicode-bidi: isolate; }
+
 .eyebrow {
-  font: 600 .75rem/1 var(--mono);
-  letter-spacing: .14em;
+  font: 500 .6875rem/1 var(--mono);
+  letter-spacing: .22em;
   text-transform: uppercase;
   color: hsl(var(--fg-faint));
+}
+
+/* A hairline in the accent, used to open a section. One motif, used sparingly. */
+.rule {
+  width: 44px; height: 1px; margin: 0 0 20px;
+  background: hsl(var(--accent));
+  border: 0;
 }
 
 /* ==========================================================================
    Shell
    ========================================================================== */
 
+/* Nothing at the top of the page until there is something to separate from.
+   The bar earns its background by being scrolled past. */
 .topbar {
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: 12px;
-  padding: 12px max(16px, env(safe-area-inset-left)) 12px max(16px, env(safe-area-inset-right));
-  background: hsl(var(--panel) / 0.86);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid hsl(var(--border));
+  padding: 16px max(20px, env(safe-area-inset-left)) 16px max(20px, env(safe-area-inset-right));
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition: background-color var(--calm) var(--ease),
+              border-color var(--calm) var(--ease),
+              padding var(--calm) var(--ease);
+}
+.topbar[data-scrolled="true"] {
+  padding-top: 12px; padding-bottom: 12px;
+  background: hsl(var(--panel) / 0.82);
+  backdrop-filter: blur(14px);
+  border-bottom-color: hsl(var(--border));
 }
 
 .wordmark {
-  display: inline-flex; align-items: baseline; gap: 8px;
+  display: inline-flex; align-items: baseline; gap: 10px;
   text-decoration: none; color: inherit;
-  font: 700 1.0625rem/1 var(--mono);
-  letter-spacing: .06em;
+  font: 500 1.125rem/1 var(--mono);
+  letter-spacing: .12em;
 }
 .wordmark .n  { color: hsl(var(--accent-text)); }
 .wordmark small {
-  font: 500 .625rem/1 var(--mono);
-  letter-spacing: .18em; text-transform: uppercase;
+  font: 400 .5625rem/1 var(--mono);
+  letter-spacing: .26em; text-transform: uppercase;
   color: hsl(var(--fg-faint));
 }
 
@@ -200,6 +243,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @media (min-width: 700px) { .topbar-who { display: flex; } }
 
 .page {
+  position: relative; z-index: 1;
   width: 100%;
   max-width: 1120px;
   margin: 0 auto;
@@ -499,6 +543,73 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .pass-actions { display: flex; gap: 6px; margin-top: auto; }
 .pass-actions .btn { flex: 1 1 auto; }
 
+/* the little flag on a pass that has been opened to a link */
+.pass-flag {
+  font: 500 .625rem/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+  padding: 5px 8px; border-radius: 5px;
+  border: 1px solid hsl(var(--accent) / 0.45);
+  color: hsl(var(--accent-text));
+}
+
+/* a photograph on a pass */
+.pass-photo {
+  margin-top: 16px; overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: hsl(var(--panel-2));
+}
+.pass-photo-wait { height: 200px; border-radius: var(--radius-sm); }
+.pass-photo-img {
+  width: 100%; height: auto; max-height: 320px; object-fit: cover;
+  opacity: 0; transition: opacity var(--calm) var(--ease);
+}
+.pass-photo[data-ready="1"] .pass-photo-img { opacity: 1; }
+
+/* ==========================================================================
+   The route globe
+   ========================================================================== */
+
+/* The globe is the showpiece, but the numbers underneath it still have to be
+   on the first screen, so it is held to a size that leaves room for them.
+   The module's own file caps it at 560; this is the page overruling that. */
+.globe { position: relative; }
+.page .globe .rg-frame { max-width: min(400px, 44vh); }
+
+/* ==========================================================================
+   File input and photograph preview
+   ========================================================================== */
+
+.input-file {
+  display: block; width: 100%;
+  padding: 10px 12px;
+  background: hsl(var(--panel-2));
+  border: 1px dashed hsl(var(--border-strong));
+  border-radius: var(--radius-sm);
+  font-size: .875rem; cursor: pointer;
+}
+.input-file:hover { border-color: hsl(var(--accent)); }
+.input-file::file-selector-button {
+  margin-inline-end: 12px;
+  min-height: 32px; padding: 0 14px;
+  border: 1px solid hsl(var(--border-strong));
+  border-radius: 6px;
+  background: hsl(var(--panel)); color: hsl(var(--fg));
+  font-size: .8125rem; font-weight: 560; cursor: pointer;
+}
+
+.photo-preview { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.photo-preview:empty { display: none; }
+.photo-preview > * { margin-top: 12px; }
+.photo-thumb,
+.photo-thumb-wrap {
+  width: 108px; height: 76px; flex: 0 0 auto;
+  border-radius: var(--radius-sm); overflow: hidden;
+  background: hsl(var(--panel-2));
+}
+.photo-thumb-wrap .pass-photo-img,
+img.photo-thumb { width: 108px; height: 76px; object-fit: cover; opacity: 1; }
+.photo-side { min-width: 0; }
+.photo-side .btn-ghost { margin-top: 4px; margin-inline-start: -12px; }
+
 /* ==========================================================================
    Stats strip
    ========================================================================== */
@@ -525,7 +636,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .toolbar { display: grid; gap: 12px; }
 @media (min-width: 760px) {
-  .toolbar { grid-template-columns: minmax(0, 1fr) auto auto; align-items: end; }
+  .toolbar { grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: end; }
 }
 .search-wrap { position: relative; }
 .search-wrap svg {
@@ -644,32 +755,109 @@ dialog.sheet > form {
    Landing page
    ========================================================================== */
 
-.hero { padding: 32px 0 0; }
-.hero .display { max-width: 22ch; }
-.hero-lede { margin-top: 20px; font-size: 1.125rem; line-height: 1.55; max-width: 52ch; color: hsl(var(--fg-muted)); }
-.hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+/* --- the sky ---------------------------------------------------------------
+   No photograph, because there is no photograph in this repository and a
+   borrowed one would be somebody else's. The horizon is drawn: a low band of
+   warm light, the air thinning upwards, and at night a still field of stars.
+   It sits behind the first screen and scrolls away with it.
+   --------------------------------------------------------------------------- */
+
+.sky {
+  position: absolute; inset: 0 0 auto; z-index: 0;
+  height: min(88vh, 780px);
+  overflow: hidden;
+  pointer-events: none;
+}
+.sky::before {
+  content: ""; position: absolute; inset: 0;
+  background:
+    radial-gradient(120% 68% at 50% 100%, hsl(var(--accent) / 0.20) 0%, hsl(var(--accent) / 0.06) 34%, transparent 62%),
+    radial-gradient(90% 60% at 78% 8%, hsl(210 60% 92% / 0.7) 0%, transparent 60%),
+    linear-gradient(to bottom, hsl(208 62% 93%) 0%, hsl(206 55% 96%) 42%, hsl(var(--bg)) 96%);
+}
+/* the horizon itself: one hairline of light */
+.sky::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 22%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, hsl(var(--accent) / 0.5), transparent);
+  opacity: .7;
+}
+.sky-stars { display: none; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sky::before {
+    background:
+      radial-gradient(130% 62% at 50% 100%, hsl(24 90% 52% / 0.22) 0%, hsl(18 80% 40% / 0.07) 32%, transparent 58%),
+      radial-gradient(100% 70% at 20% 0%, hsl(228 60% 22% / 0.9) 0%, transparent 64%),
+      linear-gradient(to bottom, hsl(226 58% 10%) 0%, hsl(224 52% 9%) 46%, hsl(var(--bg)) 96%);
+  }
+  :root:not([data-theme="light"]) .sky-stars { display: block; }
+}
+:root[data-theme="dark"] .sky::before {
+  background:
+    radial-gradient(130% 62% at 50% 100%, hsl(24 90% 52% / 0.22) 0%, hsl(18 80% 40% / 0.07) 32%, transparent 58%),
+    radial-gradient(100% 70% at 20% 0%, hsl(228 60% 22% / 0.9) 0%, transparent 64%),
+    linear-gradient(to bottom, hsl(226 58% 10%) 0%, hsl(224 52% 9%) 46%, hsl(var(--bg)) 96%);
+}
+:root[data-theme="dark"] .sky-stars { display: block; }
+
+/* Three sizes of star, each its own repeating field, so the sky does not
+   read as a regular grid. Nothing twinkles: it is a window, not a screensaver. */
+.sky-stars {
+  position: absolute; inset: 0 0 34%;
+  background-image:
+    radial-gradient(1.4px 1.4px at 18% 22%, hsl(0 0% 100% / .85), transparent 60%),
+    radial-gradient(1.1px 1.1px at 72% 14%, hsl(0 0% 100% / .70), transparent 60%),
+    radial-gradient(1.6px 1.6px at 44% 41%, hsl(38 60% 92% / .75), transparent 60%),
+    radial-gradient(1px 1px   at 88% 34%, hsl(0 0% 100% / .55), transparent 60%),
+    radial-gradient(1.2px 1.2px at 9%  57%, hsl(0 0% 100% / .60), transparent 60%),
+    radial-gradient(1px 1px   at 61% 63%, hsl(0 0% 100% / .45), transparent 60%),
+    radial-gradient(1.3px 1.3px at 33% 8%,  hsl(0 0% 100% / .65), transparent 60%),
+    radial-gradient(1px 1px   at 95% 71%, hsl(0 0% 100% / .40), transparent 60%);
+  background-size: 520px 420px, 380px 300px, 640px 520px, 300px 260px,
+                   460px 380px, 340px 290px, 580px 470px, 420px 360px;
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 52%, transparent 100%);
+          mask-image: linear-gradient(to bottom, black 0%, black 52%, transparent 100%);
+  opacity: .9;
+}
+
+.hero { padding: clamp(40px, 7vw, 104px) 0 clamp(24px, 4vw, 48px); }
+.hero .eyebrow { margin-bottom: 24px; }
+.hero .display { max-width: 17ch; }
+.hero-lede {
+  margin-top: 28px; font-size: clamp(1.0625rem, 1rem + .4vw, 1.25rem);
+  line-height: 1.6; max-width: 46ch; color: hsl(var(--fg-muted));
+}
+.hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 40px; }
 
 .strip {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  margin-top: 28px; font-size: .8125rem; color: hsl(var(--fg-faint));
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 40px; padding-top: 24px;
+  border-top: 1px solid hsl(var(--border));
+  font: 500 .75rem/1 var(--mono); letter-spacing: .1em; text-transform: uppercase;
+  color: hsl(var(--fg-faint));
 }
-.strip .dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.strip .dot { width: 3px; height: 3px; border-radius: 50%; background: hsl(var(--accent)); }
 
-.three { display: grid; gap: 16px; }
+.three { display: grid; gap: 24px; }
 @media (min-width: 800px) { .three { grid-template-columns: repeat(3, 1fr); } }
-.three h3 { font-size: 1rem; font-weight: 600; margin-bottom: 8px; }
-.three p { font-size: .9375rem; color: hsl(var(--fg-muted)); }
+.three h3 { font-family: var(--serif); font-size: 1.375rem; font-weight: 400; margin-bottom: 10px; }
+.three p { font-size: .9375rem; line-height: 1.6; color: hsl(var(--fg-muted)); }
 .three .num {
-  display: grid; place-items: center;
-  width: 30px; height: 30px; margin-bottom: 14px;
-  border-radius: 50%;
-  background: hsl(var(--accent) / 0.17); color: hsl(var(--accent-text));
-  font: 600 .8125rem/1 var(--mono);
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 20px;
+  font: 500 .6875rem/1 var(--mono); letter-spacing: .2em;
+  color: hsl(var(--accent-text));
+}
+.three .num::after {
+  content: ""; flex: 1 1 auto; height: 1px;
+  background: linear-gradient(to right, hsl(var(--accent) / .55), transparent);
 }
 
 .demo-pass { max-width: 100%; }
 
 .footer {
+  position: relative; z-index: 1;
   padding: 32px max(16px, env(safe-area-inset-left)) 48px;
   border-top: 1px solid hsl(var(--border));
   color: hsl(var(--fg-faint)); font-size: .8125rem;
