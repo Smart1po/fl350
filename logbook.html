@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en" data-gated="true">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your logbook — FL350</title>
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0b1220">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/css/app.css">
+<!-- runs before anything paints: sends a signed-out visitor to /login -->
+<script src="/assets/js/boot.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to the content</a>
+
+<header class="topbar">
+  <a class="wordmark" href="/">FL<span class="n">350</span> <small>logbook</small></a>
+  <div class="topbar-spacer"></div>
+  <span class="topbar-who" id="topbar-who"></span>
+  <button type="button" class="btn btn-ghost" id="theme-toggle" aria-pressed="false" title="Switch theme"></button>
+  <button type="button" class="btn btn-ghost" id="sign-out">Sign out</button>
+</header>
+
+<main id="main" class="page stack">
+
+  <section class="row-between">
+    <div>
+      <h1 class="heading" id="greeting">Opening your locker…</h1>
+      <p class="caption" id="greeting-sub"></p>
+    </div>
+    <button type="button" class="btn" data-add-flight>
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      <span>Add a flight</span>
+    </button>
+  </section>
+
+  <dl class="stats" id="stats" hidden></dl>
+
+  <div class="toolbar" id="toolbar" hidden>
+    <div class="field">
+      <label class="field-label" for="search">Search your flights</label>
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
+        <input class="input" type="search" id="search" placeholder="Airline, code, city, aircraft, your note…" autocomplete="off">
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label" for="filter-year">Year</label>
+      <select class="select" id="filter-year">
+        <option value="all">Every year</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="field-label" for="sort">Order</label>
+      <select class="select" id="sort">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+        <option value="longest">Longest first</option>
+      </select>
+    </div>
+  </div>
+
+  <p class="caption" id="result-count" aria-live="polite"></p>
+
+  <div id="list"></div>
+
+</main>
+
+<!-- ===================== add / edit a flight ===================== -->
+<dialog class="sheet" id="flight-sheet" aria-labelledby="sheet-title">
+  <form id="flight-form" novalidate>
+    <div class="sheet-head">
+      <h2 id="sheet-title">Add a flight</h2>
+      <button type="button" class="btn btn-ghost" data-close-sheet aria-label="Close">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+
+    <div class="sheet-body">
+
+      <div class="field-row field-row-2">
+        <div class="field">
+          <label for="f-flight-no">Flight number</label>
+          <input class="input input-code" type="text" id="f-flight-no" maxlength="10"
+                 placeholder="KU 681" autocomplete="off" spellcheck="false"
+                 aria-describedby="f-flight-no-hint f-flight-no-error">
+          <p class="field-hint" id="f-flight-no-hint">The airline fills itself in from this.</p>
+          <p class="field-error" id="f-flight-no-error"></p>
+        </div>
+        <div class="field">
+          <label for="f-airline">Airline</label>
+          <input class="input" type="text" id="f-airline" maxlength="60" list="airline-list"
+                 placeholder="Kuwait Airways" autocomplete="off"
+                 aria-describedby="f-airline-error">
+          <p class="field-error" id="f-airline-error"></p>
+        </div>
+      </div>
+
+      <div class="field-row field-row-3">
+        <div class="field">
+          <label for="f-from">From</label>
+          <input class="input input-code" type="text" id="f-from" maxlength="3" list="iata-list"
+                 placeholder="KWI" autocomplete="off" spellcheck="false"
+                 aria-describedby="f-from-error">
+          <p class="field-error" id="f-from-error"></p>
+        </div>
+        <div class="field">
+          <label for="f-to">To</label>
+          <input class="input input-code" type="text" id="f-to" maxlength="3" list="iata-list"
+                 placeholder="ICN" autocomplete="off" spellcheck="false"
+                 aria-describedby="f-to-error">
+          <p class="field-error" id="f-to-error"></p>
+        </div>
+        <div class="field">
+          <label for="f-date">Date flown</label>
+          <input class="input" type="date" id="f-date" aria-describedby="f-date-error">
+          <p class="field-error" id="f-date-error"></p>
+        </div>
+      </div>
+
+      <div class="field-row field-row-2">
+        <div class="field">
+          <label for="f-aircraft">Aircraft <span class="field-optional">— optional</span></label>
+          <input class="input" type="text" id="f-aircraft" maxlength="60"
+                 placeholder="A330-800neo" autocomplete="off"
+                 aria-describedby="f-aircraft-error">
+          <p class="field-error" id="f-aircraft-error"></p>
+        </div>
+        <div class="field">
+          <label for="f-seat">Seat <span class="field-optional">— optional</span></label>
+          <input class="input input-code" type="text" id="f-seat" maxlength="4"
+                 placeholder="32A" autocomplete="off" spellcheck="false"
+                 aria-describedby="f-seat-error">
+          <p class="field-error" id="f-seat-error"></p>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="f-note">Your private note <span class="field-optional">— optional</span></label>
+        <textarea class="textarea" id="f-note" maxlength="2000"
+                  placeholder="Anything you want to remember about this flight."
+                  aria-describedby="f-note-hint f-note-error"></textarea>
+        <p class="field-hint" id="f-note-hint">Only this account can read this back.</p>
+        <p class="field-error" id="f-note-error"></p>
+      </div>
+
+    </div>
+
+    <div class="sheet-foot">
+      <button type="button" class="btn btn-outline" data-close-sheet><span>Cancel</span></button>
+      <button type="submit" class="btn" id="flight-save"><span>Add to my locker</span></button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ===================== confirm a delete ===================== -->
+<dialog class="sheet" id="confirm-sheet" aria-labelledby="confirm-title">
+  <div class="sheet-head">
+    <h2 id="confirm-title">Remove this flight?</h2>
+  </div>
+  <div class="sheet-body">
+    <p id="confirm-text"></p>
+  </div>
+  <div class="sheet-foot">
+    <button type="button" class="btn btn-outline" id="confirm-no"><span>Keep it</span></button>
+    <button type="button" class="btn btn-danger" id="confirm-yes"><span>Remove it</span></button>
+  </div>
+</dialog>
+
+<datalist id="iata-list"></datalist>
+<datalist id="airline-list"></datalist>
+
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+<script src="/assets/js/config.js" defer></script>
+<script src="/assets/js/ui.js" defer></script>
+<script src="/assets/js/airports.js" defer></script>
+<script src="/assets/js/supabase.js" defer></script>
+<script src="/assets/js/session.js" defer></script>
+<script src="/assets/js/logbook.js" defer></script>
+</body>
+</html>

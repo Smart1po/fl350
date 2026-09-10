@@ -1,0 +1,16 @@
+# Local-only Supabase settings. The live site gets these from the Vercel
+# project's environment variables instead, via /api/config.
+assets/js/config.local.js
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Vercel
+.vercel/
+
+# Node, if it ever shows up
+node_modules/
+npm-debug.log*

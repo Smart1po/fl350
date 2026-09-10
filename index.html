@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FL350 — a private logbook for every flight you have taken</title>
+<meta name="description" content="FL350 keeps a boarding pass for every flight you have taken. One account, one locker, and nobody else can open yours.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0b1220">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/css/app.css">
+<script src="/assets/js/boot.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to the content</a>
+
+<header class="topbar">
+  <a class="wordmark" href="/">FL<span class="n">350</span> <small>logbook</small></a>
+  <div class="topbar-spacer"></div>
+  <button type="button" class="btn btn-ghost" id="theme-toggle" aria-pressed="false" title="Switch theme"></button>
+  <a class="btn btn-sm" href="/login">Sign in</a>
+</header>
+
+<main id="main" class="page stack-l">
+
+  <section class="hero">
+    <p class="eyebrow">Flight log · private by default</p>
+    <h1 class="display">Every flight you have taken, kept in one place.</h1>
+    <p class="hero-lede">
+      FL350 keeps a boarding pass for each flight in your history — the route, the
+      aircraft, the seat, and a line only you can read. One account, one locker.
+      The person sitting next to you cannot open yours.
+    </p>
+    <div class="hero-cta">
+      <a class="btn" href="/login?mode=signup">Create your locker</a>
+      <a class="btn btn-outline" href="/login">I already have one</a>
+    </div>
+    <p class="strip">
+      <span>Free</span><span class="dot"></span>
+      <span>No tracking</span><span class="dot"></span>
+      <span>Your rows are yours</span>
+    </p>
+  </section>
+
+  <section aria-labelledby="example-title">
+    <h2 class="eyebrow" id="example-title">What a flight looks like</h2>
+    <ul class="passes demo-pass">
+      <li class="pass">
+        <div class="pass-main">
+          <div class="pass-head">
+            <span class="pass-airline">Kuwait Airways</span>
+            <span class="pass-flightno">KU 681</span>
+            <span class="pass-date">14 Jul 2026</span>
+          </div>
+          <div class="route">
+            <div class="route-end">
+              <div class="route-iata">KWI</div>
+              <div class="route-city">Kuwait City</div>
+            </div>
+            <div class="route-line" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 15.5v-1.7l-7.5-4.4V4.2a1.3 1.3 0 0 0-2.6 0v5.2L3.4 13.8v1.7l7.5-2.2v4.4l-2.1 1.5v1.2l3.4-1 3.4 1v-1.2l-2.1-1.5v-4.4l7.5 2.2Z"/></svg>
+            </div>
+            <div class="route-end to">
+              <div class="route-iata">ICN</div>
+              <div class="route-city">Seoul</div>
+            </div>
+          </div>
+          <dl class="pass-facts">
+            <div class="fact"><dt>Aircraft</dt><dd>A330-800neo</dd></div>
+            <div class="fact"><dt>Distance</dt><dd>7,136 km</dd></div>
+            <div class="fact"><dt>Route</dt><dd>Kuwait City to Seoul</dd></div>
+          </dl>
+          <div class="pass-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"/></svg>
+            <p>The private line on a flight. Only the account that wrote it can read it back.</p>
+          </div>
+        </div>
+        <div class="pass-stub">
+          <dl class="stub-seat"><dt>Seat</dt><dd>32A</dd></dl>
+          <div class="barcode" aria-hidden="true">
+            <i></i><i class="b2"></i><i></i><i></i><i class="b2"></i><i></i><i class="b2"></i><i></i>
+            <i></i><i class="b2"></i><i></i><i></i><i></i><i class="b2"></i><i></i><i></i>
+            <i class="b2"></i><i></i><i></i><i class="b2"></i><i></i><i class="b2"></i><i></i><i></i>
+            <i></i><i class="b2"></i><i></i><i></i><i class="b2"></i><i></i><i></i><i class="b2"></i>
+          </div>
+        </div>
+      </li>
+    </ul>
+    <p class="caption">Distances are great-circle estimates from the airport coordinates.</p>
+  </section>
+
+  <section aria-labelledby="how-title" class="stack">
+    <h2 class="heading" id="how-title">How it works</h2>
+    <div class="three">
+      <div class="card card-pad">
+        <div class="num">1</div>
+        <h3>Make an account</h3>
+        <p>An email and a password. That account is the key to exactly one locker — yours.</p>
+      </div>
+      <div class="card card-pad">
+        <div class="num">2</div>
+        <h3>Add your flights</h3>
+        <p>Flight number, route, date, aircraft, seat. Type <span class="mono">KU 681</span> and the airline fills itself in.</p>
+      </div>
+      <div class="card card-pad">
+        <div class="num">3</div>
+        <h3>It stays yours</h3>
+        <p>Search it, edit it, delete it. Sign out and back in on any device and it is all still there.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="lock-title" class="card card-pad stack-s">
+    <h2 class="heading" id="lock-title">About the lock</h2>
+    <p class="prose">
+      Privacy here is not a filter in the page — a filter can be taken off. Every
+      row in the database carries the id of the account that wrote it, and the
+      database itself refuses to return a row to anyone else. A visitor who is
+      not signed in is refused before the question is even asked.
+    </p>
+    <p class="prose">
+      Two honest limits. The publishable key that lets your browser talk to the
+      database ships with the page, as it does on every site of this kind — what
+      protects the rows is the policy, not the key. And whoever runs a website
+      can always read its database, so keep anything you would not hand to the
+      person running it out of any website, including this one.
+    </p>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="footer-in">
+    <span><strong>FL350</strong> — built for AIFC Day 5, the Cornerstone.</span>
+    <span class="topbar-spacer"></span>
+    <a href="/login">Sign in</a>
+    <a href="/login?mode=signup">Create a locker</a>
+  </div>
+</footer>
+
+<script src="/assets/js/ui.js" defer></script>
+</body>
+</html>
