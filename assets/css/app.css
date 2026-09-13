@@ -6,32 +6,37 @@
    ========================================================================== */
 
 :root {
-  /* --- surfaces ------------------------------------------------------- */
-  --bg:            210 33% 97%;
-  --panel:           0  0% 100%;
-  --panel-2:       210 33% 98%;
-  --border:        214 30% 87%;
-  --border-strong: 214 24% 74%;
+  /* --- surfaces --------------------------------------------------------
+     Warm paper rather than clinical white, and a soft ink rather than black.
+     The pairing an airline uses on print, because a screen full of #ffffff
+     with #000000 on it is the least comfortable thing to read for an hour. */
+  --bg:             36 30% 96%;
+  --panel:          38 40% 99%;
+  --panel-2:        36 26% 94%;
+  --border:         34 18% 86%;
+  --border-strong:  32 14% 72%;
 
   /* --- text ----------------------------------------------------------- */
-  --fg:            222 47% 11%;
-  --fg-muted:      215 18% 40%;
-  --fg-faint:      215 16% 48%;
+  --fg:            212 26% 17%;
+  --fg-muted:      212 14% 37%;
+  --fg-faint:      212 13% 45%;
 
-  /* --- the one accent: runway amber ----------------------------------- */
-  --accent:         36 95% 52%;   /* fills, always with --accent-fg on top */
-  --accent-fg:      30 90%  9%;
-  --accent-text:    28 88% 31%;   /* the same idea, dark enough to be text */
+  /* --- the one accent: antique gold ------------------------------------
+     --accent fills, and always carries --accent-fg on top of it.
+     --accent-text is the same idea taken dark enough to be read as text. */
+  --accent:         36 58% 48%;
+  --accent-fg:      36 50% 10%;
+  --accent-text:    30 62% 33%;
 
   /* --- status --------------------------------------------------------- */
-  --good:          152 55% 30%;
-  --bad:             0 68% 42%;
+  --good:          152 45% 30%;
+  --bad:             4 62% 44%;
 
   /* --- shape and depth: one radius, two shadows ----------------------- */
   --radius:       14px;
   --radius-sm:     8px;
-  --shadow-card:  0 1px 2px hsl(222 47% 11% / 0.06), 0 8px 24px -12px hsl(222 47% 11% / 0.18);
-  --shadow-over:  0 24px 60px -12px hsl(222 47% 11% / 0.32);
+  --shadow-card:  0 1px 2px hsl(30 20% 20% / 0.05), 0 10px 28px -14px hsl(30 20% 20% / 0.16);
+  --shadow-over:  0 28px 66px -14px hsl(30 20% 15% / 0.30);
 
   /* --- type ------------------------------------------------------------
      Three faces, each with one job. A quiet serif carries the few large
@@ -52,50 +57,54 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg:            222 47%  7%;
-    --panel:         222 40% 11%;
-    --panel-2:       222 38% 14%;
-    --border:        217 28% 21%;
-    --border-strong: 217 24% 34%;
+    --bg:            222 42%  8%;
+    --panel:         216 33% 12%;
+    --panel-2:       216 29% 15%;
+    --border:        216 22% 22%;
+    --border-strong: 216 17% 34%;
 
-    --fg:            210 40% 97%;
-    --fg-muted:      215 22% 72%;
-    --fg-faint:      215 18% 60%;
+    /* warm off-white, never #ffffff — pure white on a dark field glares */
+    --fg:             40 18% 92%;
+    --fg-muted:      216 14% 71%;
+    --fg-faint:      216 12% 60%;
 
-    --accent:         38 95% 60%;
-    --accent-fg:      30 90%  9%;
-    --accent-text:    38 92% 66%;
+    /* the same gold, desaturated and lifted, the way it behaves at night */
+    --accent:         40 60% 62%;
+    --accent-fg:      36 50% 10%;
+    --accent-text:    40 58% 72%;
 
-    --good:          152 55% 55%;
-    --bad:             0 78% 68%;
+    --good:          152 40% 56%;
+    --bad:             4 70% 68%;
 
-    --shadow-card:  0 1px 2px hsl(0 0% 0% / 0.4), 0 8px 24px -12px hsl(0 0% 0% / 0.6);
-    --shadow-over:  0 24px 60px -12px hsl(0 0% 0% / 0.7);
+    --shadow-card:  0 1px 2px hsl(0 0% 0% / 0.38), 0 10px 28px -14px hsl(0 0% 0% / 0.58);
+    --shadow-over:  0 28px 66px -14px hsl(0 0% 0% / 0.68);
 
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg:            222 47%  7%;
-  --panel:         222 40% 11%;
-  --panel-2:       222 38% 14%;
-  --border:        217 28% 21%;
-  --border-strong: 217 24% 34%;
+  --bg:            222 42%  8%;
+  --panel:         216 33% 12%;
+  --panel-2:       216 29% 15%;
+  --border:        216 22% 22%;
+  --border-strong: 216 17% 34%;
 
-  --fg:            210 40% 97%;
-  --fg-muted:      215 22% 72%;
-  --fg-faint:      215 18% 60%;
+  /* warm off-white, never #ffffff — pure white on a dark field glares */
+  --fg:             40 18% 92%;
+  --fg-muted:      216 14% 71%;
+  --fg-faint:      216 12% 60%;
 
-  --accent:         38 95% 60%;
-  --accent-fg:      30 90%  9%;
-  --accent-text:    38 92% 66%;
+  /* the same gold, desaturated and lifted, the way it behaves at night */
+  --accent:         40 60% 62%;
+  --accent-fg:      36 50% 10%;
+  --accent-text:    40 58% 72%;
 
-  --good:          152 55% 55%;
-  --bad:             0 78% 68%;
+  --good:          152 40% 56%;
+  --bad:             4 70% 68%;
 
-  --shadow-card:  0 1px 2px hsl(0 0% 0% / 0.4), 0 8px 24px -12px hsl(0 0% 0% / 0.6);
-  --shadow-over:  0 24px 60px -12px hsl(0 0% 0% / 0.7);
+  --shadow-card:  0 1px 2px hsl(0 0% 0% / 0.38), 0 10px 28px -14px hsl(0 0% 0% / 0.58);
+  --shadow-over:  0 28px 66px -14px hsl(0 0% 0% / 0.68);
 
   color-scheme: dark;
 }
@@ -754,72 +763,6 @@ dialog.sheet > form {
 /* ==========================================================================
    Landing page
    ========================================================================== */
-
-/* --- the sky ---------------------------------------------------------------
-   No photograph, because there is no photograph in this repository and a
-   borrowed one would be somebody else's. The horizon is drawn: a low band of
-   warm light, the air thinning upwards, and at night a still field of stars.
-   It sits behind the first screen and scrolls away with it.
-   --------------------------------------------------------------------------- */
-
-.sky {
-  position: absolute; inset: 0 0 auto; z-index: 0;
-  height: min(88vh, 780px);
-  overflow: hidden;
-  pointer-events: none;
-}
-.sky::before {
-  content: ""; position: absolute; inset: 0;
-  background:
-    radial-gradient(120% 68% at 50% 100%, hsl(var(--accent) / 0.20) 0%, hsl(var(--accent) / 0.06) 34%, transparent 62%),
-    radial-gradient(90% 60% at 78% 8%, hsl(210 60% 92% / 0.7) 0%, transparent 60%),
-    linear-gradient(to bottom, hsl(208 62% 93%) 0%, hsl(206 55% 96%) 42%, hsl(var(--bg)) 96%);
-}
-/* the horizon itself: one hairline of light */
-.sky::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: 22%;
-  height: 1px;
-  background: linear-gradient(to right, transparent, hsl(var(--accent) / 0.5), transparent);
-  opacity: .7;
-}
-.sky-stars { display: none; }
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .sky::before {
-    background:
-      radial-gradient(130% 62% at 50% 100%, hsl(24 90% 52% / 0.22) 0%, hsl(18 80% 40% / 0.07) 32%, transparent 58%),
-      radial-gradient(100% 70% at 20% 0%, hsl(228 60% 22% / 0.9) 0%, transparent 64%),
-      linear-gradient(to bottom, hsl(226 58% 10%) 0%, hsl(224 52% 9%) 46%, hsl(var(--bg)) 96%);
-  }
-  :root:not([data-theme="light"]) .sky-stars { display: block; }
-}
-:root[data-theme="dark"] .sky::before {
-  background:
-    radial-gradient(130% 62% at 50% 100%, hsl(24 90% 52% / 0.22) 0%, hsl(18 80% 40% / 0.07) 32%, transparent 58%),
-    radial-gradient(100% 70% at 20% 0%, hsl(228 60% 22% / 0.9) 0%, transparent 64%),
-    linear-gradient(to bottom, hsl(226 58% 10%) 0%, hsl(224 52% 9%) 46%, hsl(var(--bg)) 96%);
-}
-:root[data-theme="dark"] .sky-stars { display: block; }
-
-/* Three sizes of star, each its own repeating field, so the sky does not
-   read as a regular grid. Nothing twinkles: it is a window, not a screensaver. */
-.sky-stars {
-  position: absolute; inset: 0 0 34%;
-  background-image:
-    radial-gradient(1.4px 1.4px at 18% 22%, hsl(0 0% 100% / .85), transparent 60%),
-    radial-gradient(1.1px 1.1px at 72% 14%, hsl(0 0% 100% / .70), transparent 60%),
-    radial-gradient(1.6px 1.6px at 44% 41%, hsl(38 60% 92% / .75), transparent 60%),
-    radial-gradient(1px 1px   at 88% 34%, hsl(0 0% 100% / .55), transparent 60%),
-    radial-gradient(1.2px 1.2px at 9%  57%, hsl(0 0% 100% / .60), transparent 60%),
-    radial-gradient(1px 1px   at 61% 63%, hsl(0 0% 100% / .45), transparent 60%),
-    radial-gradient(1.3px 1.3px at 33% 8%,  hsl(0 0% 100% / .65), transparent 60%),
-    radial-gradient(1px 1px   at 95% 71%, hsl(0 0% 100% / .40), transparent 60%);
-  background-size: 520px 420px, 380px 300px, 640px 520px, 300px 260px,
-                   460px 380px, 340px 290px, 580px 470px, 420px 360px;
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 52%, transparent 100%);
-          mask-image: linear-gradient(to bottom, black 0%, black 52%, transparent 100%);
-  opacity: .9;
-}
 
 .hero { padding: clamp(40px, 7vw, 104px) 0 clamp(24px, 4vw, 48px); }
 .hero .eyebrow { margin-bottom: 24px; }

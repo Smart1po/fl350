@@ -21,9 +21,9 @@
 .ws {
   /* --- the cabin, light theme ----------------------------------------- */
   --ws-cabin:      36 12% 84%;
-  --ws-cabin-2:    34 11% 76%;
-  --ws-cabin-3:    36 16% 91%;
-  --ws-cabin-edge: 32 10% 60%;
+  --ws-cabin-2:    34 12% 70%;
+  --ws-cabin-3:    36 18% 93%;
+  --ws-cabin-edge: 32 10% 56%;
   --ws-shadow:     28 20% 22%;
 
   --ws-ink:        30 14% 18%;
@@ -136,6 +136,12 @@
 /* while the scene is up nothing behind it should scroll */
 html.ws-open, html.ws-open body { overflow: hidden; }
 
+/* The toast host sits at z-index 50 and the scene at 60, so anything the scene
+   has to say — a gyroscope that will not answer — would land behind it and be
+   read by nobody. Lifted only while the scene is up, so the locker's own
+   stacking is untouched. */
+html.ws-open .toasts { z-index: 61; }
+
 /* ==========================================================================
    Skies — one set of tokens per hour of the day.
 
@@ -148,13 +154,14 @@ html.ws-open, html.ws-open body { overflow: hidden; }
   --ws-mid:     228 54% 10%;
   --ws-horizon: 222 46% 16%;
   --ws-haze:    220 30% 21%;
-  --ws-under:   224 34% 12%;
+  --ws-under:   222 32% 18%;
   --ws-glow:    212 44% 34%;
   --ws-glow-o:  .40;
   --ws-cirrus:  220 26% 40%;
   --ws-cirrus-o:.30;
-  --ws-deck:    226 24% 18%;
-  --ws-deck-lit:220 22% 44%;
+  --ws-deck:    224 26% 30%;
+  --ws-deck-lit:218 24% 48%;
+  --ws-deck-dark:228 34% 15%;
   --ws-star:    212 30% 98%;
   --ws-star-o:  1;
   --ws-wash-o:  .10;
@@ -165,13 +172,14 @@ html.ws-open, html.ws-open body { overflow: hidden; }
   --ws-mid:     240 50% 22%;
   --ws-horizon: 264 40% 34%;
   --ws-haze:    272 34% 44%;
-  --ws-under:   258 28% 22%;
+  --ws-under:   268 32% 38%;
   --ws-glow:     22 78% 52%;
   --ws-glow-o:  .48;
   --ws-cirrus:  282 34% 56%;
   --ws-cirrus-o:.34;
-  --ws-deck:    252 24% 24%;
-  --ws-deck-lit:276 32% 56%;
+  --ws-deck:    262 26% 42%;
+  --ws-deck-lit:280 36% 64%;
+  --ws-deck-dark:252 32% 22%;
   --ws-star:    268 24% 96%;
   --ws-star-o:  .45;
   --ws-wash-o:  .16;
@@ -182,13 +190,14 @@ html.ws-open, html.ws-open body { overflow: hidden; }
   --ws-mid:     206 60% 57%;
   --ws-horizon:  32 84% 63%;
   --ws-haze:     34 74% 74%;
-  --ws-under:    28 40% 52%;
+  --ws-under:    32 64% 70%;
   --ws-glow:     40 96% 62%;
   --ws-glow-o:  .88;
   --ws-cirrus:   28 88% 78%;
   --ws-cirrus-o:.46;
-  --ws-deck:     28 36% 58%;
-  --ws-deck-lit: 44 76% 96%;
+  --ws-deck:     34 60% 84%;
+  --ws-deck-lit: 44 82% 98%;
+  --ws-deck-dark: 22 46% 60%;
   --ws-star-o:  0;
   --ws-wash-o:  .22;
 }
@@ -198,13 +207,14 @@ html.ws-open, html.ws-open body { overflow: hidden; }
   --ws-mid:     208 74% 49%;
   --ws-horizon: 200 62% 79%;
   --ws-haze:    200 40% 89%;
-  --ws-under:   205 26% 70%;
+  --ws-under:   202 36% 85%;
   --ws-glow:    200 62% 94%;
   --ws-glow-o:  .34;
   --ws-cirrus:  200 40% 96%;
   --ws-cirrus-o:.40;
-  --ws-deck:    208 26% 74%;
+  --ws-deck:    205 32% 90%;
   --ws-deck-lit:  0  0% 100%;
+  --ws-deck-dark:210 28% 68%;
   --ws-star-o:  0;
   --ws-wash-o:  .08;
 }
@@ -214,13 +224,14 @@ html.ws-open, html.ws-open body { overflow: hidden; }
   --ws-mid:     212 52% 50%;
   --ws-horizon:  26 88% 58%;
   --ws-haze:     30 76% 70%;
-  --ws-under:    24 42% 46%;
+  --ws-under:    28 68% 66%;
   --ws-glow:     32 96% 60%;
   --ws-glow-o:  .84;
   --ws-cirrus:   24 84% 72%;
   --ws-cirrus-o:.48;
-  --ws-deck:     24 42% 52%;
-  --ws-deck-lit: 38 78% 94%;
+  --ws-deck:     32 66% 78%;
+  --ws-deck-lit: 40 86% 96%;
+  --ws-deck-dark: 20 50% 54%;
   --ws-star-o:  0;
   --ws-wash-o:  .24;
 }
@@ -285,24 +296,34 @@ html.ws-open, html.ws-open body { overflow: hidden; }
    The plates — flat cards hung at four different distances
    ========================================================================== */
 
-/* Centred with negative insets rather than a margin, because a percentage
-   margin resolves against the container's WIDTH on every side — including
-   margin-top, which would put the horizon in the wrong place on any view that
-   is not square. */
+/* Each plate is sized so that, once the perspective has shrunk it, it covers
+   three viewports — which is what the yaw and pitch clamps need to never see
+   past an edge.
+
+   The size is written out rather than reached with scale(). Both give the same
+   picture, but a plate at 300% blown up 3.7x asks the browser to rasterise
+   eleven viewports' worth of surface at 3.7x device scale, and whether that
+   costs anything depends on how well its raster heuristics see through the
+   perspective. Sized directly, the raster scale is 1 and the cost is known.
+
+   Centred with left/top rather than a negative margin: a percentage margin
+   resolves against the container's WIDTH on every side, margin-top included,
+   which would put the horizon in the wrong place on any view that is not
+   square. */
 .ws-plate {
+  --ws-s: calc((var(--ws-p) - var(--ws-plate-z)) / var(--ws-p));
   position: absolute;
-  left: -100%;
-  top: -100%;
-  width: 300%;
-  height: 300%;
+  width:  calc(300% * var(--ws-s));
+  height: calc(300% * var(--ws-s));
+  left:   calc(50% - 150% * var(--ws-s));
+  top:    calc(50% - 150% * var(--ws-s));
+  transform: translateZ(calc(var(--ws-plate-z) * 1px));
   transform-origin: 50% 50%;
   backface-visibility: hidden;
 }
 
 .ws-sky {
-  transform:
-    translateZ(calc(var(--ws-z-sky) * 1px))
-    scale(calc((var(--ws-p) - var(--ws-z-sky)) / var(--ws-p)));
+  --ws-plate-z: var(--ws-z-sky);
   /* The stops are bunched around the middle because the plate is three
      viewports tall: at rest the frame only shows 33% to 67% of it, and the
      pitch clamp opens that out to roughly 10% and 90%. Spread evenly, the
@@ -322,20 +343,21 @@ html.ws-open, html.ws-open body { overflow: hidden; }
 /* The stars belong to the sky, not to the screen. They are on a plate inside
    the rotating world so that looking around moves the head past them and not
    them past the head. */
+/* Tiled at its natural size, never stretched to fit. With `cover` the browser
+   has to rasterise this one SVG across the whole plate — tens of millions of
+   pixels — and it will sit there and do it. The aperture only ever shows about
+   a tenth of the plate's width, which is less than one tile, so the repeat
+   cannot be caught out. */
 .ws-stars {
-  transform:
-    translateZ(calc(var(--ws-z-stars) * 1px))
-    scale(calc((var(--ws-p) - var(--ws-z-stars)) / var(--ws-p)));
+  --ws-plate-z: var(--ws-z-stars);
   background-image: var(--ws-stars-img, none);
-  background-size: cover;
-  background-position: 50% 30%;
+  background-repeat: repeat;
+  background-size: 1200px 1200px;
   opacity: var(--ws-star-o, 0);
 }
 
 .ws-glow {
-  transform:
-    translateZ(calc(var(--ws-z-glow) * 1px))
-    scale(calc((var(--ws-p) - var(--ws-z-glow)) / var(--ws-p)));
+  --ws-plate-z: var(--ws-z-glow);
   background-image: radial-gradient(
     ellipse var(--ws-glow-w, 34%) var(--ws-glow-h, 20%) at var(--ws-glow-x, 50%) 50%,
     hsl(var(--ws-glow) / var(--ws-glow-o)) 0%,
@@ -347,9 +369,7 @@ html.ws-open, html.ws-open body { overflow: hidden; }
 /* Cirrus is streaky rather than puffy, so stretched radial gradients read
    better than a texture and cost nothing to make. */
 .ws-cirrus {
-  transform:
-    translateZ(calc(var(--ws-z-cirrus) * 1px))
-    scale(calc((var(--ws-p) - var(--ws-z-cirrus)) / var(--ws-p)));
+  --ws-plate-z: var(--ws-z-cirrus);
   opacity: var(--ws-cirrus-o, .4);
   background-image:
     radial-gradient(ellipse 16% 1.1% at 22% 44.5%, hsl(var(--ws-cirrus) / .55), hsl(var(--ws-cirrus) / 0) 70%),
@@ -388,14 +408,20 @@ html.ws-open, html.ws-open body { overflow: hidden; }
   backface-visibility: hidden;
 }
 
+/* Radial, not a top-down gradient. The deck is a finite square, so as soon as
+   the head yaws, its far CORNER swings into the frame and a straight top-down
+   fade leaves a slanted cut across the sky where the plane simply stops. Fading
+   toward the rim in every direction hides the edge whichever way it is turned.
+   The rim tone is the same haze the sky plate uses below the horizon, so the
+   two meet without a seam. */
 .ws-deck-fade {
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(
-    to bottom,
-    hsl(var(--ws-haze))     0%,
-    hsl(var(--ws-haze))    12%,
-    hsl(var(--ws-haze) / 0) 34%
+  background-image: radial-gradient(
+    circle closest-side at 50% 50%,
+    hsl(var(--ws-haze) / 0)   42%,
+    hsl(var(--ws-haze) / .55) 72%,
+    hsl(var(--ws-haze))       94%
   );
 }
 
@@ -572,10 +598,15 @@ html.ws-open, html.ws-open body { overflow: hidden; }
    named after. It sits on the cabin wall below the window, never over the sky.
    ========================================================================== */
 
+/* Logical properties, so the overlay mirrors itself under dir="rtl" without
+   being told. What deliberately does NOT mirror is everything below the
+   overlay: the window, its rails and shade, the breather hole, the sheen on
+   the glass and the wing. Those are a physical aeroplane seen from one
+   physical seat. Flipping them with the language would put the wing out of
+   the wrong side of the aircraft. */
 .ws-hud {
   position: absolute;
-  left: max(20px, env(safe-area-inset-left));
-  right: max(20px, env(safe-area-inset-right));
+  inset-inline: max(20px, env(safe-area-inset-left)) max(20px, env(safe-area-inset-right));
   bottom: max(20px, env(safe-area-inset-bottom));
   display: flex;
   align-items: flex-end;
@@ -587,6 +618,17 @@ html.ws-open, html.ws-open body { overflow: hidden; }
 }
 .ws[data-looking="1"] .ws-hud { opacity: 0; }
 .ws[data-vr="1"] .ws-hud { display: none; }
+
+/* A flight number, an IATA pair and a flight level are printed the same way on
+   every boarding pass in the world, so they keep their own direction inside an
+   Arabic page. The markup carries dir="ltr" as well; this is the belt to that
+   pair of braces. */
+.ws-hud-no,
+.ws-hud-route,
+.ws-hud-fl {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
 
 .ws-hud-no {
   font: 600 .75rem/1 var(--mono);
@@ -610,7 +652,7 @@ html.ws-open, html.ws-open body { overflow: hidden; }
   color: hsl(var(--ws-ink-dim));
 }
 
-.ws-hud-right { text-align: right; }
+.ws-hud-right { text-align: end; }
 .ws-hud-fl {
   font: 650 1.5rem/1 var(--mono);
   letter-spacing: .06em;
@@ -619,7 +661,7 @@ html.ws-open, html.ws-open body { overflow: hidden; }
 
 @media (max-width: 520px) {
   .ws-hud { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .ws-hud-right { text-align: left; }
+  .ws-hud-right { text-align: start; }
   .ws-hud-route, .ws-hud-fl { font-size: 1.25rem; }
 }
 
@@ -630,7 +672,7 @@ html.ws-open, html.ws-open body { overflow: hidden; }
 .ws-controls {
   position: absolute;
   top: max(16px, env(safe-area-inset-top));
-  right: max(16px, env(safe-area-inset-right));
+  inset-inline-end: max(16px, env(safe-area-inset-right));
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -706,13 +748,10 @@ html.ws-open, html.ws-open body { overflow: hidden; }
 }
 
 /* ==========================================================================
-   The hook on the boarding pass
+   The way in
 
-   logbook.js owns the pass markup, so this only styles the row it adds: a
-   full-width action above Edit and Delete, because three buttons abreast do
-   not fit a 224px stub.
+   The button that opens all this lives on the boarding pass, which pass.js
+   owns: an icon-only .btn-ghost carrying data-window, already styled by
+   app.css like every other action in that row. There is nothing for this
+   file to add to it, and a rule here that nothing uses is worse than none.
    ========================================================================== */
-
-.pass-ws-action { margin-top: auto; }
-.pass-ws-action .btn { width: 100%; }
-.pass-ws-action + .pass-actions { margin-top: 6px; }

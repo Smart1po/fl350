@@ -24,12 +24,14 @@
   var RAD = Math.PI / 180;
 
   /* Limits on where the head can go. Yaw stops before the fuselage would be
-     in the way, and pitch stops well short of rolling the world over — and
-     also short of where looking down would reach the near edge of the cloud
-     deck. The deck is sized to this number in windowseat.css; the two have to
-     move together. */
-  var YAW_LIMIT = 52;
-  var PITCH_LIMIT = 26;
+     in the way, and pitch stops well short of rolling the world over.
+
+     They are also what the scenery is sized against in windowseat.css: how
+     far a plate has to reach before its edge comes into the aperture, and how
+     near the cloud deck has to come before looking down runs off it. Raising
+     either number without going back to that file shows an edge. */
+  var YAW_LIMIT = 45;
+  var PITCH_LIMIT = 22;
 
   /* how much of the look the wing takes, in px and degrees per degree looked */
   var WING_X = 0.62;
@@ -38,6 +40,10 @@
   var state = null;   // the live scene, or null when nothing is open
 
   /* ------------------------------------------------------------ can we run */
+
+  function hasTouch() {
+    return !!(('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+  }
 
   function isSupported() {
     if (!window.requestAnimationFrame) return false;
@@ -170,9 +176,15 @@
 
   /* -------------------------------------------------------------- the clouds */
 
-  // One 512px tile, every blob also drawn across whichever edges it straddles
-  // so the tile joins itself and the deck has no visible grid.
-  function deckTexture(rnd, litChan, deckChan) {
+  /* One 512px tile, every blob also drawn across whichever edges it straddles
+     so the tile joins itself and the deck has no visible grid.
+
+     Highlights AND shadows, over a deck whose own colour stays bright. Doing
+     it the other way round — a dark deck with white tops painted on — looks
+     right up close and then betrays itself at distance, where the haze takes
+     the tops away and leaves a wide band of the base colour sitting under the
+     horizon looking like ploughed earth. */
+  function deckTexture(rnd, litChan, darkChan) {
     var SIZE = 512;
     var canvas = document.createElement('canvas');
     canvas.width = SIZE;
@@ -189,8 +201,8 @@
       y = rnd() * SIZE;
       r = 24 + rnd() * 72;
       lit = rnd() < 0.58;
-      colour = lit ? litChan : deckChan;
-      alpha = (lit ? 0.42 : 0.30) + rnd() * 0.30;
+      colour = lit ? litChan : darkChan;
+      alpha = (lit ? 0.50 : 0.34) + rnd() * 0.34;
 
       offsets = [[0, 0]];
       if (x - r < 0) offsets.push([SIZE, 0]);
@@ -364,14 +376,15 @@
 
       '<div class="ws-hud" aria-hidden="true">' +
         '<div class="ws-hud-left">' +
-          '<p class="ws-hud-no">' + esc(flight.airline || 'Flight') + ' · ' + esc(flight.flight_no) + '</p>' +
-          '<p class="ws-hud-route">' + esc(flight.from_iata) +
-            '<span class="sep">→</span>' + esc(flight.to_iata) + '</p>' +
+          '<p class="ws-hud-no" dir="ltr">' + esc(flight.airline || 'Flight') +
+            ' · ' + esc(flight.flight_no) + '</p>' +
+          '<p class="ws-hud-route" dir="ltr">' + esc(flight.from_iata) +
+            '<span class="sep">&#8594;</span>' + esc(flight.to_iata) + '</p>' +
           '<p class="ws-hud-sub">' + esc(route) + ' · ' + esc(day) +
             (flight.seat ? ' · seat ' + esc(flight.seat) : '') + '</p>' +
         '</div>' +
         '<div class="ws-hud-right">' +
-          '<p class="ws-hud-fl">FL350</p>' +
+          '<p class="ws-hud-fl" dir="ltr">FL350</p>' +
           '<p class="ws-hud-sub">cruise · 35,000 ft' +
             (flight.aircraft ? ' · ' + esc(flight.aircraft) : '') + '</p>' +
         '</div>' +
@@ -414,7 +427,11 @@
 
     /* The palette has to be on the page before the textures are made: their
        colours are read back out of it rather than written twice. */
-    var deckImg = deckTexture(rnd, triplet(root, '--ws-deck-lit'), triplet(root, '--ws-deck'));
+    var deckImg = deckTexture(
+      rnd,
+      triplet(root, '--ws-deck-lit'),
+      triplet(root, '--ws-deck-dark')
+    );
     var starImg = starTexture(
       rngFrom('stars|' + flight.flight_no),
       hsla(triplet(root, '--ws-star'), 1)
@@ -446,7 +463,7 @@
       targetYaw: 0, targetPitch: 0,
       lastYaw: null, lastPitch: null,
       dragId: null, dragX: 0, dragY: 0,
-      lookTimer: 0,
+      lookTimer: 0, gyroWatch: 0,
       raf: 0,
       opener: document.activeElement,
       hadFullscreen: false
@@ -464,9 +481,13 @@
     var closeBtn = root.querySelector('[data-ws="close"]');
     if (closeBtn) closeBtn.focus();
 
-    // iOS gates the gyroscope behind a permission prompt and every other
-    // phone just has it; either way the offer only appears where it can work
-    if (window.DeviceOrientationEvent) {
+    /* The offer only appears where it can work. A desktop Chrome has
+       DeviceOrientationEvent on the window and no gyroscope behind it, so
+       testing for the constructor alone puts a button on a laptop that
+       promises to track the member's head and then does nothing at all. The
+       touch test is not proof of a gyroscope either, but it is the difference
+       between a control that usually works and one that never can. */
+    if (window.DeviceOrientationEvent && hasTouch()) {
       var gyroBtn = root.querySelector('[data-ws="gyro"]');
       if (gyroBtn) gyroBtn.hidden = false;
     }
@@ -538,6 +559,12 @@
     var slide = -Math.sin(yaw * RAD) * s.neck;
     var rise = Math.sin(pitch * RAD) * s.neck;
 
+    /* Pitch before yaw, and the order is not a style choice. This is the
+       inverse of a camera that yaws about the world's up axis and then pitches
+       about its own: it leaves the ground plane's normal with no sideways
+       component, so the horizon stays level however far the head turns.
+       Swapped round, turning and looking up at once brings the horizon up
+       tilted — and only two thirds as far as it should. */
     var rot = ' rotateX(' + pitch.toFixed(3) + 'deg) rotateY(' + yaw.toFixed(3) + 'deg)';
     var wingX = (-yaw * WING_X).toFixed(2);
     var wingY = (pitch * WING_Y).toFixed(2);
@@ -709,6 +736,7 @@
     if (s.gyro) {
       s.gyro = false;
       s.gyroRef = null;
+      window.clearTimeout(s.gyroWatch);
       window.removeEventListener('deviceorientation', onOrient);
       button.setAttribute('aria-pressed', 'false');
       looking(false);
@@ -722,13 +750,24 @@
       button.setAttribute('aria-pressed', 'true');
       looking(true);
       looking(false);
+
+      /* Permission granted is not the same as a gyroscope answering. Some
+         devices grant it and then send nothing, which looks to the member like
+         a control that is on and broken. Give it two seconds; if no reading has
+         arrived, turn it back off and say so rather than leave them waiting. */
+      s.gyroWatch = window.setTimeout(function () {
+        if (state && state.gyro && !state.gyroRef) {
+          toggleGyro(button);
+          refuse();
+        }
+      }, 2000);
     }
 
     function refuse() {
       // no scolding and no dead end: the drag was always there and still is
       button.hidden = true;
       if (FL.ui && FL.ui.toast) {
-        FL.ui.toast('Drag to look around instead.', 'info');
+        FL.ui.toast('This device will not report its movement. Drag to look around instead.', 'info');
       }
     }
 
@@ -871,6 +910,7 @@
 
     window.cancelAnimationFrame(s.raf);
     window.clearTimeout(s.lookTimer);
+    window.clearTimeout(s.gyroWatch);
     unwire();
     unlockOrientation();
     leaveFullscreen();
