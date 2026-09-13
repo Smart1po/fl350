@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nothing at this gate — FL350</title>
+<title data-i18n="meta.404.title">Nothing at this gate — FL350</title>
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#0b1220">
 <meta name="robots" content="noindex">
@@ -14,7 +14,11 @@
 <link rel="stylesheet" href="/assets/css/app.css">
 <link rel="stylesheet" href="/assets/css/sky.css">
 <link rel="stylesheet" href="/assets/css/rtl.css">
+<link rel="stylesheet" href="/assets/css/waiting.css">
 <script src="/assets/js/boot.js"></script>
+<script src="/assets/js/arrive.js"></script>
+<script src="/assets/js/strings.js"></script>
+<script src="/assets/js/i18n.js"></script>
 </head>
 <body>
 <div class="sky" aria-hidden="true">
@@ -29,10 +33,10 @@
 </div>
 
 <header class="topbar">
-  <a class="wordmark" href="/">FL<span class="n">350</span> <small>logbook</small></a>
+  <a class="wordmark" href="/">FL<span class="n">350</span> <small data-i18n="app.brand.sub">logbook</small></a>
   <div class="topbar-spacer"></div>
-  <button type="button" class="btn btn-ghost" id="lang-toggle" hidden></button>
-  <button type="button" class="btn btn-ghost" id="theme-toggle" aria-pressed="false" title="Switch theme"></button>
+  <button type="button" id="lang-toggle" hidden></button>
+  <button type="button" class="btn btn-ghost" id="theme-toggle" aria-pressed="false" title="Switch theme" data-i18n-attr="title:theme.switch"></button>
 </header>
 
 <main id="main" class="page page-narrow">
@@ -40,14 +44,13 @@
     <div class="state-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
     </div>
-    <h1 class="heading">Nothing at this gate.</h1>
-    <p>That address does not exist on FL350. The departures board is back this way.</p>
-    <a class="btn" href="/">Back to the front page</a>
+    <h1 class="heading" data-i18n="e404.title">Nothing at this gate.</h1>
+    <p data-i18n="e404.body">That address does not exist on FL350. The departures board is back this way.</p>
+    <a class="btn" href="/" data-i18n="e404.back">Back to the front page</a>
   </div>
 </main>
 
-<script src="/assets/js/strings.js" defer></script>
-<script src="/assets/js/i18n.js" defer></script>
 <script src="/assets/js/ui.js" defer></script>
+<script src="/assets/js/waiting.js" defer></script>
 </body>
 </html>

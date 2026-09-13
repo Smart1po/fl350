@@ -13,6 +13,22 @@
   var FL = (window.FL350 = window.FL350 || {});
   var pending = null;
 
+  // Same resolver the rest of the app uses: the catalogue when it is loaded and
+  // has the key, the English literal otherwise. FL350.i18n.t hands back the key
+  // itself when it does not know one, and nobody should ever read "err.config".
+  function say(key, english, vars) {
+    if (FL.i18n && typeof FL.i18n.t === 'function') {
+      var out = FL.i18n.t(key, vars);
+      if (out && out !== key) return out;
+    }
+    if (vars) {
+      Object.keys(vars).forEach(function (name) {
+        english = english.replace('{' + name + '}', vars[name]);
+      });
+    }
+    return english;
+  }
+
   function load() {
     var override = window.FL350_CONFIG;
     if (override && override.url && override.key) {
@@ -27,9 +43,15 @@
           .then(function (body) {
             if (!response.ok) {
               var err = new Error(
-                body.hint || 'The settings endpoint answered ' + response.status + '.'
+                body.hint ||
+                say('err.config.http', 'The settings endpoint answered {status}.',
+                    { status: response.status })
               );
-              err.code = body.error || 'config_http_' + response.status;
+              // Prefixed, because every page decides whether to show the
+              // "missing environment variables" card by testing for a code
+              // that starts with "config" — and the endpoint's own words for
+              // this are 'not_configured' and 'wrong_key', which do not.
+              err.code = 'config_' + (body.error || 'http_' + response.status);
               err.missing = body.missing || null;
               throw err;
             }
@@ -38,7 +60,8 @@
       })
       .then(function (body) {
         if (!body.url || !body.key) {
-          var err = new Error('The settings endpoint did not return a database address.');
+          var err = new Error(
+            say('err.config.empty', 'The settings endpoint did not return a database address.'));
           err.code = 'config_empty';
           throw err;
         }
@@ -74,7 +97,12 @@
   }
 
   function normalise(cfg) {
-    return { url: String(cfg.url).replace(/\/+$/, ''), key: String(cfg.key) };
+    // Trim as well as strip the trailing slash: a value pasted into a hosting
+    // panel picks up a space at one end surprisingly often.
+    return {
+      url: String(cfg.url).replace(/^\s+|\s+$/g, '').replace(/\/+$/, ''),
+      key: String(cfg.key).replace(/^\s+|\s+$/g, '')
+    };
   }
 
   FL.config = function () {

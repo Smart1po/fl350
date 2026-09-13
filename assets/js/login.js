@@ -4,6 +4,7 @@
 
   var FL = window.FL350;
   var ui = FL.ui;
+  var t = FL.i18n.t;
 
   var form = document.getElementById('auth-form');
   var tabIn = document.getElementById('tab-signin');
@@ -51,18 +52,18 @@
 
   function checkEmail() {
     var value = inputEmail.value.trim();
-    if (!value) return setError(inputEmail, 'Your email address goes here.');
+    if (!value) return setError(inputEmail, t('auth.err.email.empty'));
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) {
-      return setError(inputEmail, 'That does not look like an email address.');
+      return setError(inputEmail, t('auth.err.email.bad'));
     }
     return setError(inputEmail, '');
   }
 
   function checkPassword() {
     var value = inputPassword.value;
-    if (!value) return setError(inputPassword, 'A password goes here.');
+    if (!value) return setError(inputPassword, t('auth.err.password.empty'));
     if (mode === 'signup' && value.length < 8) {
-      return setError(inputPassword, 'Use at least 8 characters.');
+      return setError(inputPassword, t('auth.err.password.short'));
     }
     return setError(inputPassword, '');
   }
@@ -70,8 +71,8 @@
   function checkName() {
     if (mode !== 'signup') return true;
     var value = inputName.value.trim();
-    if (!value) return setError(inputName, 'What should the locker call you?');
-    if (value.length > 40) return setError(inputName, 'A bit shorter, please.');
+    if (!value) return setError(inputName, t('auth.err.name.empty'));
+    if (value.length > 40) return setError(inputName, t('auth.err.name.long'));
     return setError(inputName, '');
   }
 
@@ -87,17 +88,15 @@
     inputName.required = signingUp;
     inputPassword.setAttribute('autocomplete', signingUp ? 'new-password' : 'current-password');
 
-    title.textContent = signingUp ? 'Create your locker' : 'Welcome back';
-    lede.textContent = signingUp
-      ? 'One account, one locker. Nobody else can open it — not even the person sitting next to you.'
-      : 'Sign in to open your logbook.';
-    submit.querySelector('span').textContent = signingUp ? 'Create my locker' : 'Sign in';
-    passwordHint.textContent = signingUp
-      ? 'At least 8 characters. Never reuse a password you use anywhere else — not here, not on any site you built an hour ago.'
-      : '';
-    switchNote.innerHTML = signingUp
-      ? 'Already have a locker? <button type="button" class="link-button" id="auth-swap">Sign in</button>'
-      : 'First time here? <button type="button" class="link-button" id="auth-swap">Create a locker</button>';
+    title.textContent = t(signingUp ? 'auth.title.signup' : 'auth.title.signin');
+    lede.textContent = t(signingUp ? 'auth.lede.signup' : 'auth.lede.signin');
+    submit.querySelector('span').textContent = t(signingUp ? 'auth.submit.signup' : 'auth.submit.signin');
+    passwordHint.textContent = signingUp ? t('auth.hint.password') : '';
+    switchNote.innerHTML =
+      ui.esc(t(signingUp ? 'auth.switch.have' : 'auth.switch.first')) +
+      ' <button type="button" class="link-button" id="auth-swap">' +
+      ui.esc(t(signingUp ? 'auth.switch.signin' : 'auth.switch.create')) +
+      '</button>';
 
     var swap = document.getElementById('auth-swap');
     if (swap) {
@@ -138,10 +137,7 @@
             if (result.needsConfirmation) {
               ui.busy(submit, false);
               setMode('signin');
-              say(
-                'Account created. This project has email confirmation switched on, so open the link in the email we just sent, then sign in.',
-                'good'
-              );
+              say(t('auth.msg.created'), 'good');
               return null;
             }
             return result.session;
@@ -155,7 +151,7 @@
       })
       .catch(function (err) {
         ui.busy(submit, false);
-        say(err.message || 'That did not work.');
+        say(err.message || t('auth.err.generic'));
         if (/password/i.test(err.message || '')) inputPassword.focus();
       });
   });
@@ -180,9 +176,9 @@
   ui.mountThemeToggle(document.getElementById('theme-toggle'));
 
   var params = new URLSearchParams(location.search);
-  if (params.get('signedout')) say('Signed out. Your flights are still in the locker.', 'good');
+  if (params.get('signedout')) say(t('auth.msg.signedout'), 'good');
   if (params.get('next') && !params.get('signedout')) {
-    say('That page is members only. Sign in to open your logbook.', 'good');
+    say(t('auth.msg.membersonly'), 'good');
   }
 
   setMode(params.get('mode') === 'signup' ? 'signup' : 'signin');
@@ -194,6 +190,10 @@
       .then(function () { location.replace(nextPath()); })
       .catch(function () { FL.auth.signOut(); });
   }
+
+  document.addEventListener('fl350:langchange', function () {
+    setMode(mode);
+  });
 
   inputEmail.focus();
 })();

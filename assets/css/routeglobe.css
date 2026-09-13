@@ -6,17 +6,21 @@
    stroke-linejoin.
 
    Every colour here comes from a token in app.css, so the globe follows the
-   theme without this file ever naming light or dark. The bare numbers are
-   viewBox units, not pixels: the drawing is authored in a 400 x 400 box and
-   scaled by its container, so a unit is whatever 1/400th of the width
-   happens to be.
+   theme without this file ever naming light or dark.
+
+   A bare number here is a viewBox unit rather than a pixel: the drawing is
+   authored in a 400 x 400 box and scaled by its container, so a unit is
+   whatever 1/400th of the width happens to be. The line weights grouped at
+   the top of .rg are the exception: the strokes they feed carry
+   vector-effect, which moves them into device pixels. Both readings are
+   wanted — a dot should grow with the sphere, a line should stay a line.
    ========================================================================== */
 
 .rg {
   /* stroke weights, kept together so the whole drawing can be retuned from
-     one place. the two hairlines are device pixels because they pair with
-     vector-effect below; the rest are viewBox units, which inside an SVG is
-     what a CSS px means. */
+     one place. all eight are device pixels, because every rule they feed
+     carries vector-effect. that is what keeps a route heavier than the grid
+     it crosses at every size the frame is given — see the routes block. */
   --rg-hair:   0.75;
   --rg-limb:   1;
   --rg-arc-1:  1.3px;
@@ -84,12 +88,25 @@
 
 /* butt caps, not round: an arc that runs off the visible hemisphere is cut
    at the limb, and a round cap there bulges past the edge of the sphere. at
-   the airport end the dot covers the flat end anyway. */
+   the airport end the dot covers the flat end anyway.
+
+   non-scaling-stroke here for the same reason the graticule has it, and it is
+   not cosmetic: the page caps the frame at min(400px, 44vh), so a 780px-tall
+   phone draws the 400 unit box at 328px and a short landscape window draws it
+   at 185px. without this a once-flown route measured 0.64px on the first and
+   0.36px on the second, against a graticule pinned at 0.75px — the grey grid
+   came out heavier than the gold routes it is meant to sit under. with it the
+   three route weights are 0.78, 1.2 and 1.68px whatever size the frame is.
+
+   the glow keeps it too, so the halo holds its ratio to the line it haloes,
+   and so both dash patterns are measured in the same units when the arcs
+   draw themselves in. */
 .rg-arc,
 .rg-glow {
   fill: none;
   stroke-linecap: butt;
   stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 /* the glow is a second, wider, nearly transparent copy of the same path
@@ -123,7 +140,13 @@
   unicode-bidi: isolate;
 
   font-family: var(--mono);
-  font-size: 13px;
+
+  /* the size is not written here. routeglobe.js has to know it to work out
+     whether two codes collide, and it publishes what it used as --rg-label on
+     the figure, so there is one number and this file reads it. the fallback
+     can never be reached — the same script that sets the property is the one
+     that draws the <text> this rule styles. */
+  font-size: calc(var(--rg-label, 15) * 1px);
   font-weight: 600;
   letter-spacing: 0.06em;
   fill: hsl(var(--fg));
@@ -132,11 +155,11 @@
   paint-order: stroke fill;
 }
 
-/* on a narrow phone the globe is small enough that a proportional label
-   drops under ten pixels, so it gets a little of the width back. */
-@media (max-width: 480px) {
-  .rg-label { font-size: 17px; stroke-width: 4; }
-}
+/* there is no viewport override of the size on purpose. one used to bump the
+   label to 17px under 480px wide, which the collision test in the script knew
+   nothing about, and it was keyed to the wrong axis anyway: the frame is
+   sized by min(400px, 44vh), so it is a short window rather than a narrow one
+   that shrinks the label. */
 
 /* --- the caption ------------------------------------------------------ */
 

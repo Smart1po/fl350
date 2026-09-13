@@ -24,16 +24,16 @@
   function name() {
     var session = current();
     var user = session && session.user;
-    if (!user) return 'there';
+    if (!user) return null;
 
     var meta = user.user_metadata || {};
     var chosen = meta.display_name || meta.full_name || meta.name;
     if (chosen && String(chosen).trim()) return String(chosen).trim();
 
     var address = user.email || '';
-    var local = address.split('@')[0] || 'there';
+    var local = address.split('@')[0] || '';
     local = local.replace(/[._-]+/g, ' ').trim();
-    if (!local) return 'there';
+    if (!local) return null;
     return local.charAt(0).toUpperCase() + local.slice(1);
   }
 
@@ -72,7 +72,11 @@
     var who = document.getElementById('topbar-who');
     if (who) {
       var address = email();
-      who.textContent = address ? 'Signed in as ' + address : '';
+      who.textContent = address
+        ? (FL.i18n && FL.i18n.t
+            ? FL.i18n.t('book.who', { email: address })
+            : 'Signed in as ' + address)
+        : '';
     }
 
     var out = document.getElementById('sign-out');

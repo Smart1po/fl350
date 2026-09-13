@@ -12,8 +12,10 @@
 // Environment variables only reach the NEXT build. Change one, then redeploy.
 
 module.exports = function handler(request, response) {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+  // Trimmed, because a value pasted into a settings field arrives with a
+  // stray space more often than not, and the failure that causes is baffling.
+  const url = (process.env.SUPABASE_URL || '').trim();
+  const key = (process.env.SUPABASE_PUBLISHABLE_KEY || '').trim();
 
   if (!url || !key) {
     response.setHeader('Cache-Control', 'no-store');

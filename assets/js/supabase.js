@@ -17,6 +17,23 @@
 
   var FL = (window.FL350 = window.FL350 || {});
   var STORE_KEY = 'fl350.session';
+
+  // Read late, never captured: this file is deferred and i18n.js is not,
+  // but the fallback matters more than the order. FL350.i18n.t answers with
+  // the key itself when the catalogue has no entry, and a reader must never
+  // be shown "err.denied" — so a reply equal to the key counts as no reply.
+  function say(key, english, vars) {
+    if (FL.i18n && typeof FL.i18n.t === 'function') {
+      var out = FL.i18n.t(key, vars);
+      if (out && out !== key) return out;
+    }
+    if (vars) {
+      Object.keys(vars).forEach(function (name) {
+        english = english.replace('{' + name + '}', vars[name]);
+      });
+    }
+    return english;
+  }
   var REFRESH_MARGIN_MS = 90 * 1000;
 
   /* ---------------------------------------------------------------- store */
@@ -66,42 +83,47 @@
     raw = String(raw);
     var lower = raw.toLowerCase();
 
-    if (status === 0) return 'No connection. Check the network and try again.';
+    if (status === 0) return say('err.offline', 'No connection. Check the network and try again.');
 
     if (lower.indexOf('invalid login credentials') > -1) {
-      return 'That email and password do not match an account.';
+      return say('err.badcreds', 'That email and password do not match an account.');
     }
     if (lower.indexOf('email not confirmed') > -1) {
-      return 'This account still needs to be confirmed. Open the link in the confirmation email, then sign in.';
+      return say('err.unconfirmed', 'This account still needs to be confirmed. Open the link in the confirmation email, then sign in.');
     }
     if (lower.indexOf('user already registered') > -1 || lower.indexOf('already been registered') > -1) {
-      return 'There is already an account with that email. Sign in instead.';
+      return say('err.registered', 'There is already an account with that email. Sign in instead.');
     }
     if (lower.indexOf('password should be at least') > -1 || lower.indexOf('password_too_short') > -1) {
-      return 'That password is too short. Use at least 8 characters.';
+      return say('err.pwshort', 'That password is too short. Use at least 8 characters.');
     }
     if (lower.indexOf('weak') > -1 && lower.indexOf('password') > -1) {
-      return 'That password has turned up in a known breach. Pick a different one.';
+      return say('err.pwweak', 'That password has turned up in a known breach. Pick a different one.');
     }
     if (lower.indexOf('unable to validate email') > -1 || lower.indexOf('invalid email') > -1) {
-      return 'That does not look like an email address.';
+      return say('err.email', 'That does not look like an email address.');
     }
     if (status === 429 || lower.indexOf('rate limit') > -1 || lower.indexOf('too many') > -1) {
-      return 'Too many attempts in a row. Wait a minute and try again.';
+      return say('err.ratelimit', 'Too many attempts in a row. Wait a minute and try again.');
     }
     if (status === 401 || status === 403) {
-      return raw || 'You are not signed in, or the sign-in has expired.';
+      // Supabase's own wording is always English. It is more precise than
+      // ours, so it goes to the console for whoever is debugging, and the
+      // reader gets a sentence in their own language.
+      if (raw && window.console) console.warn('FL350 auth: ' + raw);
+      return say('err.unauthorised', 'You are not signed in, or the sign-in has expired.');
     }
-    if (status === 409) return 'That flight is already in your locker.';
+    if (status === 409) return say('err.duplicate', 'That flight is already in your locker.');
 
     // Constraint violations come back from Postgres with a code.
     if (body && body.code) {
-      if (body.code === '23514') return 'One of those values is not allowed. Check the codes and the date.';
-      if (body.code === '42501') return 'The database refused that. You can only touch your own flights.';
-      if (body.code === '23503') return 'That flight is not linked to a signed-in member.';
+      if (body.code === '23514') return say('err.check', 'One of those values is not allowed. Check the codes and the date.');
+      if (body.code === '42501') return say('err.rls', 'The database refused that. You can only touch your own flights.');
+      if (body.code === '23503') return say('err.fk', 'That flight is not linked to a signed-in member.');
     }
 
-    return raw || 'Something went wrong (' + status + ').';
+    if (raw && window.console) console.warn('FL350: ' + raw);
+    return say('err.unknown', 'Something went wrong ({status}).', { status: status });
   }
 
   function fail(status, body) {
@@ -175,21 +197,21 @@
         body: { email: email, password: password }
       }).then(function (body) {
         var session = shape(body);
-        if (!session) throw fail(500, { message: 'The sign-in did not return a session.' });
+        if (!session) throw fail(500, { message: say('err.nosession', 'The sign-in did not return a session.') });
         return write(session);
       });
     },
 
     refresh: function () {
       var current = read();
-      if (!current) return Promise.reject(fail(401, { message: 'Not signed in.' }));
+      if (!current) return Promise.reject(fail(401, { message: say('err.notsignedin', 'Not signed in.') }));
       return call('/auth/v1/token?grant_type=refresh_token', {
         method: 'POST',
         body: { refresh_token: current.refresh_token }
       }).then(
         function (body) {
           var session = shape(body);
-          if (!session) throw fail(401, { message: 'Could not refresh the sign-in.' });
+          if (!session) throw fail(401, { message: say('err.norefresh', 'Could not refresh the sign-in.') });
           if (!session.user) session.user = current.user;
           return write(session);
         },
@@ -203,7 +225,7 @@
     // Returns a live access token, refreshing first if it is about to expire.
     token: function () {
       var current = read();
-      if (!current) return Promise.reject(fail(401, { message: 'Not signed in.' }));
+      if (!current) return Promise.reject(fail(401, { message: say('err.notsignedin', 'Not signed in.') }));
       if (current.expires_at - Date.now() > REFRESH_MARGIN_MS) {
         return Promise.resolve(current.access_token);
       }
@@ -225,14 +247,37 @@
       });
     },
 
+    // Day 6 audit, finding 8. This used to take the access token straight out of
+    // storage and post it to /auth/v1/logout. That works right up until the
+    // token has expired — the ordinary case after a tab has been open for an
+    // hour — and then the server answers 401, the .catch swallows it, and the
+    // refresh token is never revoked. The member believes they signed out; the
+    // refresh token copied off that machine keeps working.
+    //
+    // So: refresh first if the token is stale, and log out with one the server
+    // will accept. The local session is cleared either way, because a sign-out
+    // must never depend on the network to at least get you off this device.
     signOut: function () {
       var current = read();
-      write(null);
       if (!current) return Promise.resolve();
-      // Best effort: the local session is already gone either way.
-      return call('/auth/v1/logout', { method: 'POST', token: current.access_token }).catch(
-        function () {}
-      );
+
+      // token() reads the CURRENT session, so it has to run before the wipe.
+      return auth
+        .token()
+        .then(
+          function (token) {
+            write(null);
+            return call('/auth/v1/logout', { method: 'POST', token: token });
+          },
+          function () {
+            // The refresh itself failed, which means the session is already
+            // dead server-side. Nothing left to revoke.
+            write(null);
+          }
+        )
+        .catch(function () {
+          write(null);
+        });
     }
   };
 
@@ -289,7 +334,7 @@
         prefer: 'return=representation'
       }).then(function (rows) {
         if (!rows || !rows.length) {
-          throw fail(403, { message: 'That flight is not yours to change.' });
+          throw fail(403, { message: say('err.notyours.update', 'That flight is not yours to change.') });
         }
         return rows[0];
       });
@@ -301,7 +346,7 @@
         prefer: 'return=representation'
       }).then(function (rows) {
         if (!rows || !rows.length) {
-          throw fail(403, { message: 'That flight is not yours to delete.' });
+          throw fail(403, { message: say('err.notyours.delete', 'That flight is not yours to delete.') });
         }
         return true;
       });
@@ -386,7 +431,7 @@
         json: true,
         body: JSON.stringify({ expiresIn: seconds || 3600 })
       }).then(function (body) {
-        if (!body || !body.signedURL) throw fail(500, { message: 'No signed link came back.' });
+        if (!body || !body.signedURL) throw fail(500, { message: say('err.nolink', 'No signed link came back.') });
         return FL.config().then(function (cfg) {
           return cfg.url + '/storage/v1' + body.signedURL;
         });

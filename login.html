@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sign in — FL350</title>
-<meta name="description" content="Sign in to your FL350 logbook, or create a locker of your own.">
+<title data-i18n="meta.login.title">Sign in — FL350</title>
+<meta name="description" data-i18n-attr="content:meta.login.description" content="Sign in to your FL350 logbook, or create a locker of your own.">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#0b1220">
 <meta name="robots" content="noindex">
@@ -15,10 +15,14 @@
 <link rel="stylesheet" href="/assets/css/app.css">
 <link rel="stylesheet" href="/assets/css/sky.css">
 <link rel="stylesheet" href="/assets/css/rtl.css">
+<link rel="stylesheet" href="/assets/css/waiting.css">
 <script src="/assets/js/boot.js"></script>
+<script src="/assets/js/arrive.js"></script>
+<script src="/assets/js/strings.js"></script>
+<script src="/assets/js/i18n.js"></script>
 </head>
 <body>
-<a class="skip-link" href="#main">Skip to the content</a>
+<a class="skip-link" href="#main" data-i18n="app.skip">Skip to the content</a>
 
 <div class="sky" aria-hidden="true">
   <div class="sky-air"></div>
@@ -32,19 +36,19 @@
 </div>
 
 <header class="topbar">
-  <a class="wordmark" href="/">FL<span class="n">350</span> <small>logbook</small></a>
+  <a class="wordmark" href="/">FL<span class="n">350</span> <small data-i18n="app.brand.sub">logbook</small></a>
   <div class="topbar-spacer"></div>
-  <button type="button" class="btn btn-ghost" id="lang-toggle" hidden></button>
-  <button type="button" class="btn btn-ghost" id="theme-toggle" aria-pressed="false" title="Switch theme"></button>
+  <button type="button" id="lang-toggle" hidden></button>
+  <button type="button" class="btn btn-ghost" id="theme-toggle" aria-pressed="false" title="Switch theme" data-i18n-attr="title:theme.switch"></button>
 </header>
 
 <main id="main" class="page page-narrow">
 
   <div class="card card-pad">
 
-    <div class="tabs" role="tablist" aria-label="Sign in or create an account">
-      <button type="button" class="tab" id="tab-signin" role="tab" aria-selected="true">Sign in</button>
-      <button type="button" class="tab" id="tab-signup" role="tab" aria-selected="false">Create a locker</button>
+    <div class="tabs" role="tablist" aria-label="Sign in or create an account" data-i18n-attr="aria-label:auth.tabs.aria">
+      <button type="button" class="tab" id="tab-signin" role="tab" aria-selected="true" data-i18n="auth.tab.signin">Sign in</button>
+      <button type="button" class="tab" id="tab-signup" role="tab" aria-selected="false" data-i18n="auth.tab.signup">Create a locker</button>
     </div>
 
     <h1 class="heading" id="auth-title">Welcome back</h1>
@@ -55,23 +59,25 @@
     <form id="auth-form" novalidate>
 
       <div class="field" id="field-name" hidden>
-        <label for="display-name">What should we call you?</label>
+        <label for="display-name" data-i18n="auth.field.name">What should we call you?</label>
         <input class="input" type="text" id="display-name" name="display-name"
                autocomplete="given-name" maxlength="40" placeholder="Your first name"
+               data-i18n-attr="placeholder:auth.field.name.ph"
                aria-describedby="display-name-error">
         <p class="field-error" id="display-name-error"></p>
       </div>
 
       <div class="field">
-        <label for="email">Email</label>
+        <label for="email" data-i18n="auth.field.email">Email</label>
         <input class="input" type="email" id="email" name="email"
                autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false"
-               placeholder="you@example.com" aria-describedby="email-error">
+               placeholder="you@example.com" aria-describedby="email-error"
+               data-i18n-attr="placeholder:auth.field.email.ph">
         <p class="field-error" id="email-error"></p>
       </div>
 
       <div class="field">
-        <label for="password">Password</label>
+        <label for="password" data-i18n="auth.field.password">Password</label>
         <input class="input" type="password" id="password" name="password"
                autocomplete="current-password" aria-describedby="password-hint password-error">
         <p class="field-hint" id="password-hint"></p>
@@ -86,7 +92,7 @@
 
     </form>
 
-    <p class="form-note mt-24">
+    <p class="form-note mt-24" data-i18n-html="auth.note.one">
       <strong>One locker per account.</strong> Your flights are stored with the id of the
       account that wrote them, and the database refuses to hand a row to anybody else —
       including whoever is sitting next to you.
@@ -94,7 +100,7 @@
 
   </div>
 
-  <p class="caption mt-24" id="honesty">
+  <p class="caption mt-24" id="honesty" data-i18n="auth.honesty">
     Never reuse a password you use anywhere else. Not here, not on any site that was
     built an hour ago. Whoever runs a website can read its database, so keep phone
     numbers, addresses and civil IDs out of this one.
@@ -105,9 +111,8 @@
 <div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
 
 <script src="/assets/js/config.js" defer></script>
-<script src="/assets/js/strings.js" defer></script>
-<script src="/assets/js/i18n.js" defer></script>
 <script src="/assets/js/ui.js" defer></script>
+<script src="/assets/js/waiting.js" defer></script>
 <script src="/assets/js/supabase.js" defer></script>
 <script src="/assets/js/session.js" defer></script>
 <script src="/assets/js/login.js" defer></script>

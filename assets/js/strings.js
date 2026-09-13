@@ -88,6 +88,19 @@
       en: 'Nothing at this gate — FL350',
       ar: 'لا شيء عند هذه البوابة — FL350'
     },
+    'meta.share.title': {
+      en: 'A shared flight — FL350',
+      ar: 'رحلة مشتركة — FL350'
+    },
+    'meta.share.description': {
+      en: 'One boarding pass, shared from a private FL350 logbook.',
+      ar: 'بطاقة صعود واحدة، مشتركة من سجل رحلات خاص في FL350.'
+    },
+    /* the page title once the row has arrived; the codes stay Latin */
+    'meta.share.flight': {
+      en: '{flightNo}, {from} to {to} — FL350',
+      ar: '{flightNo}، من {from} إلى {to} — FL350'
+    },
 
     /* --------------------------------------------------------- front page */
 
@@ -249,6 +262,7 @@
     'book.sort.newest':  { en: 'Newest first', ar: 'الأحدث أولًا' },
     'book.sort.oldest':  { en: 'Oldest first', ar: 'الأقدم أولًا' },
     'book.sort.longest': { en: 'Longest first', ar: 'الأطول أولًا' },
+    'book.export':       { en: 'Export', ar: 'تصدير' },
 
     /* ------------------------------------------------------------- statistics */
 
@@ -259,9 +273,13 @@
     'unit.km':       { en: 'km', ar: 'كم' },
     'stat.distance.laps':     { en: '≈ {laps}× around the Earth', ar: '≈ {laps} مرة حول الأرض' },
     'stat.distance.approx':   { en: 'approximate, great circle', ar: 'تقديرية، دائرة عظمى' },
-    /* the counted noun is the legs, so this one agrees with {n} */
+    /* the counted noun is the legs, so this one agrees with {n} — which is why
+       the English says "{n} legs of {total}" and not "{n} of {total} legs":
+       the second form puts the noun after {total} and then agrees it with the
+       wrong number, and "0 of 1 legs measured" is reachable with one flight
+       whose airports are not in the list. */
     'stat.distance.measured': {
-      en: { one: '{n} of {total} leg measured', other: '{n} of {total} legs measured' },
+      en: { one: '{n} leg of {total} measured', other: '{n} legs of {total} measured' },
       ar: {
         zero: 'لم تُحسب أي مسافة من {total}',
         one: 'حُسبت مسافة واحدة من {total}',
@@ -353,6 +371,21 @@
     'pass.edit':          { en: 'Edit', ar: 'تعديل' },
     'pass.delete':        { en: 'Delete', ar: 'حذف' },
 
+    /* the four buttons on the stub, and the flag on a shared pass. the titles
+       and the hidden labels differ on purpose: the label names the control,
+       the title says what it will do. */
+    'pass.window':        { en: 'Window seat', ar: 'مقعد النافذة' },
+    'pass.window.title':  { en: 'Look out of the window', ar: 'انظر من النافذة' },
+    'pass.share':         { en: 'Share', ar: 'مشاركة' },
+    'pass.share.title':   { en: 'Share this flight', ar: 'شارك هذه الرحلة' },
+    'pass.share.on':      { en: 'Shared — open to anyone with the link', ar: 'مشتركة — مفتوحة لكل من يملك الرابط' },
+    'pass.flag.shared':   { en: 'Shared', ar: 'مشتركة' },
+
+    /* the photograph. the bucket is private, so a pass shows a placeholder
+       until the signed link comes back — and a caption if it never does. */
+    'photo.alt':          { en: 'A photograph attached to this flight.', ar: 'صورة مرفقة بهذه الرحلة.' },
+    'photo.failed':       { en: 'That photograph could not be opened.', ar: 'تعذّر فتح تلك الصورة.' },
+
     /* --------------------------------------------------- the flight sheet */
 
     'sheet.add.title':  { en: 'Add a flight', ar: 'أضف رحلة' },
@@ -393,8 +426,31 @@
     'form.note.ph':   { en: 'Anything you want to remember about this flight.', ar: 'أي شيء تحب أن تتذكره عن هذه الرحلة.' },
     'form.note.hint': { en: 'Only this account can read this back.', ar: 'لا يقرأ هذا إلا هذا الحساب.' },
 
+    /* markup: data-i18n-html */
+    'form.photo.label': {
+      en: 'A photograph <span class="field-optional">— optional</span>',
+      ar: 'صورة <span class="field-optional">— اختياري</span>'
+    },
+    /* the file types are what the picker itself shows, so they stay Latin */
+    'form.photo.hint': {
+      en: 'JPEG, PNG, WebP or AVIF, up to 5 MB. It goes into a private bucket that only your own account can open — never a public address.',
+      ar: 'JPEG أو PNG أو WebP أو AVIF، حتى 5 ميغابايت. تذهب إلى مساحة خاصة لا يفتحها إلا حسابك — لا إلى عنوان عام.'
+    },
+    'photo.chosen':     { en: '{name} · {kb} KB', ar: '{name} · {kb} كيلوبايت' },
+    'photo.alt.chosen': { en: 'The photograph you just chose.', ar: 'الصورة التي اخترتها للتو.' },
+    'photo.another':    { en: 'Choose another', ar: 'اختر غيرها' },
+    'photo.attached':   { en: 'Already attached to this flight.', ar: 'مرفقة بهذه الرحلة بالفعل.' },
+    'photo.remove':     { en: 'Take it off', ar: 'انزعها' },
+    'photo.willremove': { en: 'The photograph will come off when you save.', ar: 'ستُنزع الصورة عند الحفظ.' },
+    'photo.keep':       { en: 'Keep it after all', ar: 'أبقِها' },
+
     'form.err.flightno.empty': { en: 'Which flight was it?', ar: 'أي رحلة كانت؟' },
-    'form.err.flightno.len':   { en: 'Between 2 and 10 characters, like KU 681.', ar: 'من 2 إلى 10 خانات، مثل KU 681.' },
+    /* Two of the Arabic errors carry a Latin example baked into the sentence
+       rather than interpolated, so fill()'s isolation never sees them and the
+       bidi algorithm gets the token instead. Written as \u escapes because
+       LRI and PDI are invisible: a copy-paste that dropped one would be a bug
+       nobody could spot in the diff. Without them "KU 681" reads "681 KU". */
+    'form.err.flightno.len':   { en: 'Between 2 and 10 characters, like KU 681.', ar: 'من 2 إلى 10 خانات، مثل ' + '\u2066' + 'KU 681' + '\u2069' + '.' },
     'form.err.airline.empty':  { en: 'Which airline?', ar: 'أي شركة طيران؟' },
     'form.err.airline.short':  { en: 'A little more than that.', ar: 'أكثر من ذلك بقليل.' },
     'form.err.from':           { en: 'Three letters, like KWI.', ar: 'ثلاثة أحرف، مثل KWI.' },
@@ -402,16 +458,52 @@
     'form.err.same':           { en: 'A flight has to land somewhere else.', ar: 'الرحلة لا بد أن تهبط في مكان آخر.' },
     'form.err.date.empty':     { en: 'When did you fly?', ar: 'متى سافرت؟' },
     'form.err.date.future':    { en: 'This is a log of flights you have taken, so not the future.', ar: 'هذا سجل لرحلات سافرتها، فلا مكان للمستقبل.' },
-    'form.err.seat':           { en: 'Like 32A — a row number and one letter.', ar: 'مثل 32A — رقم صف وحرف واحد.' },
+    'form.err.seat':           { en: 'Like 32A — a row number and one letter.', ar: 'مثل ' + '\u2066' + '32A' + '\u2069' + ' — رقم صف وحرف واحد.' },
     'form.err.note.long':      { en: 'A bit long — 2000 characters at most.', ar: 'طويلة قليلًا — 2000 حرف كحد أقصى.' },
+    'form.err.photo.type':     { en: 'JPEG, PNG, WebP or AVIF only.', ar: 'JPEG أو PNG أو WebP أو AVIF فقط.' },
+    'form.err.photo.size':     { en: 'That is {mb} MB. The limit is 5 MB.', ar: 'حجمها {mb} ميغابايت. الحد 5 ميغابايت.' },
 
     'confirm.title': { en: 'Remove this flight?', ar: 'حذف هذه الرحلة؟' },
+    /* three sentences rather than one, because the middle one only appears
+       when the flight carries a photograph — each has to stand on its own */
     'confirm.text': {
-      en: 'Remove {flightNo}, {from} to {to} on {date}? This cannot be undone.',
-      ar: 'حذف {flightNo}، من {from} إلى {to} بتاريخ {date}؟ لا يمكن التراجع عن ذلك.'
+      en: 'Remove {flightNo}, {from} to {to} on {date}?',
+      ar: 'حذف {flightNo}، من {from} إلى {to} بتاريخ {date}؟'
     },
+    'confirm.photo':  { en: 'The photograph goes with it.', ar: 'وتذهب الصورة معها.' },
+    'confirm.undone': { en: 'This cannot be undone.', ar: 'لا يمكن التراجع عن ذلك.' },
     'confirm.no':  { en: 'Keep it', ar: 'أبقِها' },
     'confirm.yes': { en: 'Remove it', ar: 'احذفها' },
+
+    /* --------------------------------------- sharing one flight, in the locker */
+
+    'share.sheet.title': { en: 'Shared', ar: 'تمت المشاركة' },
+    'share.link.label':  { en: 'The link', ar: 'الرابط' },
+    'share.stop':        { en: 'Stop sharing', ar: 'أوقف المشاركة' },
+    'share.done':        { en: 'Done', ar: 'تم' },
+    'share.copy':        { en: 'Copy link', ar: 'انسخ الرابط' },
+    /* markup: data-i18n-html */
+    'share.note': {
+      en: '<strong>This does not open your table.</strong> A stranger with the link gets one row, through one function that only ever returns what is printed on a boarding pass. Your note is not among those columns and cannot be. Switch sharing off and the link stops answering immediately.',
+      ar: '<strong>هذا لا يفتح جدولك.</strong> من يملك الرابط يحصل على صف واحد، عبر دالة واحدة لا تُعيد إلا ما يُطبع على بطاقة الصعود. ملاحظتك ليست بين تلك الأعمدة ولا يمكن أن تكون. أوقف المشاركة فيتوقف الرابط عن الرد فورًا.'
+    },
+    /* the sheet's summary is up to four sentences joined with a space: the two
+       middle ones only when the row carries them, and the last two are the
+       halves of one either/or, so they never appear together */
+    'share.what': {
+      en: 'Anyone with this link sees {airline} {flightNo}, {from} to {to} on {date}.',
+      ar: 'كل من يملك هذا الرابط يرى {airline} {flightNo}، من {from} إلى {to} بتاريخ {date}.'
+    },
+    'share.what.aircraft': { en: 'The aircraft is a {aircraft}.', ar: 'الطائرة {aircraft}.' },
+    'share.what.seat':     { en: 'The seat is {seat}.', ar: 'المقعد {seat}.' },
+    'share.what.note': {
+      en: 'Your note stays private — the share link cannot return it.',
+      ar: 'ملاحظتك تبقى خاصة — رابط المشاركة لا يستطيع إعادتها.'
+    },
+    'share.what.nonote': {
+      en: 'Your note stays private if you add one later.',
+      ar: 'ملاحظتك تبقى خاصة إن أضفت واحدة لاحقًا.'
+    },
 
     /* -------------------------------------------------------------- toasts */
 
@@ -420,6 +512,35 @@
     'toast.removed':    { en: 'Flight removed.', ar: 'حُذفت الرحلة.' },
     'toast.savefail':   { en: 'That did not save.', ar: 'لم يُحفظ ذلك.' },
     'toast.deletefail': { en: 'That did not delete.', ar: 'لم يُحذف ذلك.' },
+    'toast.sharefail':  { en: 'That could not be shared.', ar: 'تعذّرت مشاركة ذلك.' },
+    'toast.share.off':  { en: 'Sharing switched off. The link is dead.', ar: 'أُوقفت المشاركة. الرابط لم يعد يعمل.' },
+    'toast.share.changefail': { en: 'That could not be changed.', ar: 'تعذّر تغيير ذلك.' },
+    'toast.link.copied':   { en: 'Link copied.', ar: 'نُسخ الرابط.' },
+    /* Ctrl+C is a key on the reader's keyboard, so it stays as it is printed */
+    'toast.link.selected': { en: 'Link selected — copy it with Ctrl+C.', ar: 'حُدّد الرابط — انسخه بـ Ctrl+C.' },
+    'toast.exported': {
+      en: { one: 'Downloaded {n} flight. The file includes your private notes.', other: 'Downloaded {n} flights. The file includes your private notes.' },
+      ar: {
+        zero: 'لم تُنزَّل أي رحلة.',
+        one: 'نُزّلت رحلة واحدة. الملف يتضمن ملاحظاتك الخاصة.',
+        two: 'نُزّلت رحلتان. الملف يتضمن ملاحظاتك الخاصة.',
+        few: 'نُزّلت {n} رحلات. الملف يتضمن ملاحظاتك الخاصة.',
+        many: 'نُزّلت {n} رحلة. الملف يتضمن ملاحظاتك الخاصة.',
+        other: 'نُزّلت {n} رحلة. الملف يتضمن ملاحظاتك الخاصة.'
+      }
+    },
+    'toast.photo.unnamed': {
+      en: 'That photograph could not be named. The flight was saved without it.',
+      ar: 'تعذّرت تسمية تلك الصورة. حُفظت الرحلة بدونها.'
+    },
+    'toast.photo.failed': {
+      en: 'The flight was saved, but the photograph was not: {reason}',
+      ar: 'حُفظت الرحلة، أما الصورة فلا: {reason}'
+    },
+    'toast.ws.unsupported': {
+      en: 'The window seat needs a browser with CSS 3D transforms.',
+      ar: 'مقعد النافذة يحتاج متصفحًا يدعم تحويلات CSS ثلاثية الأبعاد.'
+    },
 
     /* ------------------------------------------- what the database says back */
 
@@ -436,6 +557,7 @@
     'err.check':        { en: 'One of those values is not allowed. Check the codes and the date.', ar: 'إحدى القيم غير مسموح بها. راجع الرموز والتاريخ.' },
     'err.rls':          { en: 'The database refused that. You can only touch your own flights.', ar: 'قاعدة البيانات رفضت ذلك. لا تستطيع لمس غير رحلاتك.' },
     'err.fk':           { en: 'That flight is not linked to a signed-in member.', ar: 'هذه الرحلة غير مرتبطة بعضو مسجَّل الدخول.' },
+    'err.nolink':          { en: 'No signed link came back.', ar: 'لم يعُد أي رابط موقّع.' },
     'err.unknown':      { en: 'Something went wrong ({status}).', ar: 'حدث خطأ ما ({status}).' },
     'err.nosession':    { en: 'The sign-in did not return a session.', ar: 'لم يُعِد تسجيل الدخول أي جلسة.' },
     'err.notsignedin':  { en: 'Not signed in.', ar: 'لست مسجّل الدخول.' },
@@ -452,6 +574,200 @@
       en: 'That address does not exist on FL350. The departures board is back this way.',
       ar: 'هذا العنوان غير موجود في FL350. لوحة المغادرة من هنا.'
     },
-    'e404.back': { en: 'Back to the front page', ar: 'عد إلى الصفحة الأولى' }
+    'e404.back': { en: 'Back to the front page', ar: 'عد إلى الصفحة الأولى' },
+
+    /* ---------------------------------------------------------- share page */
+    /* The page a stranger opens. It has no account and no locker behind it,
+       so the wording is written for somebody who has never seen FL350. */
+
+    'share.nav.start':  { en: 'Start your own', ar: 'ابدأ خزانتك' },
+    'share.eyebrow':    { en: 'Shared boarding pass', ar: 'بطاقة صعود مشتركة' },
+    'share.opening':    { en: 'Opening the link…', ar: 'نفتح الرابط…' },
+    'share.sub': {
+      en: '{airline} {flightNo}, {date}. Shared from a private logbook — the owner’s note is not part of this link.',
+      ar: '{airline} {flightNo}، {date}. مشتركة من سجل رحلات خاص — ملاحظة صاحبها ليست جزءًا من هذا الرابط.'
+    },
+
+    'share.missing.title':   { en: 'This link does not open anything.', ar: 'هذا الرابط لا يفتح شيئًا.' },
+    'share.missing.heading': { en: 'Nothing to show.', ar: 'لا شيء نعرضه.' },
+    'share.missing.body': {
+      en: 'Either the flight was never shared, sharing has since been switched off, or the link is not quite right. Nothing about the owner’s locker is revealed either way — this page cannot see it.',
+      ar: 'إمّا أن الرحلة لم تُشارَك أصلًا، أو أُوقفت مشاركتها بعد ذلك، أو أن الرابط غير صحيح. وفي كل الأحوال لا يُكشف شيء عن خزانة صاحبها — هذه الصفحة لا تراها.'
+    },
+    'share.missing.action':  { en: 'What FL350 is', ar: 'ما هو FL350' },
+    'share.fail.title':      { en: 'The link could not be opened.', ar: 'تعذّر فتح الرابط.' },
+    'share.fail.heading': {
+      en: 'Something went wrong on the way to the database.',
+      ar: 'حدث خطأ في الطريق إلى قاعدة البيانات.'
+    },
+    'share.fail.body':       { en: 'Try again in a moment.', ar: 'حاول بعد قليل.' },
+
+    'share.explain.title': { en: 'What is and is not in this link', ar: 'ما في هذا الرابط وما ليس فيه' },
+    'share.explain.p1': {
+      en: 'The owner of this flight switched sharing on for this one row. The link shows the flight as it would be printed on a boarding pass — airline, number, route, date, aircraft, seat — and nothing else.',
+      ar: 'صاحب هذه الرحلة فعّل المشاركة لهذا الصف وحده. يعرض الرابط الرحلة كما تُطبع على بطاقة الصعود — شركة الطيران، الرقم، المسار، التاريخ، الطائرة، المقعد — ولا شيء غير ذلك.'
+    },
+    'share.explain.p2': {
+      en: 'Their private note is not here, and it cannot be. Sharing does not open the table: a stranger still has no rights on it at all. This page asks a single function for a single row by its id, and that function only ever returns the columns above, only for a row whose owner marked it public.',
+      ar: 'ملاحظته الخاصة ليست هنا، ولا يمكن أن تكون. المشاركة لا تفتح الجدول: الغريب لا يملك عليه أي صلاحية إطلاقًا. هذه الصفحة تسأل دالة واحدة عن صف واحد بمعرّفه، وتلك الدالة لا تُعيد إلا الأعمدة أعلاه، ولا تُعيدها إلا لصف علّمه صاحبه بأنه عام.'
+    },
+    'share.footer.what': { en: 'What this is', ar: 'ما هذا الموقع' },
+    /* markup: data-i18n-html */
+    'footer.private': {
+      en: '<strong>FL350</strong> — a private flight log.',
+      ar: '<strong>FL350</strong> — سجل رحلات خاص.'
+    },
+
+    /* -------------------------------------------------------- the route globe */
+    /* routeglobe.js writes its own English at the call site and looks these up,
+       so a missing key here is an English sentence, not a raw key. It probes
+       'globe.caption.empty' to decide whether to stamp the caption lang="ar":
+       that key going missing would put Arabic direction over English words. */
+
+    'globe.caption.empty': {
+      en: 'Nothing plotted yet. Add a flight and it appears here.',
+      ar: 'لا شيء مرسوم بعد. أضف رحلة وستظهر هنا.'
+    },
+    'globe.airports': {
+      en: { one: '{n} airport', other: '{n} airports' },
+      ar: {
+        zero: 'لا مطارات',
+        one: 'مطار واحد',
+        two: 'مطارين',
+        few: '{n} مطارات',
+        many: '{n} مطارًا',
+        other: '{n} مطار'
+      }
+    },
+    /* {airports} arrives already rendered from 'globe.airports', so it is a
+       string in the sentence and the noun it carries is already agreed */
+    'globe.caption': {
+      en: {
+        one: '{n} flight between {airports}, centred on {region}.',
+        other: '{n} flights between {airports}, centred on {region}.'
+      },
+      ar: {
+        zero: 'لا رحلات بين {airports}، والمنظر متمركز على {region}.',
+        one: 'رحلة واحدة بين {airports}، والمنظر متمركز على {region}.',
+        two: 'رحلتان بين {airports}، والمنظر متمركز على {region}.',
+        few: '{n} رحلات بين {airports}، والمنظر متمركز على {region}.',
+        many: '{n} رحلة بين {airports}، والمنظر متمركز على {region}.',
+        other: '{n} رحلة بين {airports}، والمنظر متمركز على {region}.'
+      }
+    },
+    /* the module puts the separating space in front of this one itself */
+    'globe.skipped': {
+      en: {
+        one: '{n} flight is not drawn — its airport codes are not in the list, so there are no coordinates for it.',
+        other: '{n} flights are not drawn — their airport codes are not in the list, so there are no coordinates for them.'
+      },
+      ar: {
+        zero: 'كل الرحلات مرسومة.',
+        one: 'رحلة واحدة غير مرسومة — رمزا مطاريها ليسا في القائمة، فلا إحداثيات لها.',
+        two: 'رحلتان غير مرسومتين — رموز مطاراتهما ليست في القائمة، فلا إحداثيات لهما.',
+        few: '{n} رحلات غير مرسومة — رموز مطاراتها ليست في القائمة، فلا إحداثيات لها.',
+        many: '{n} رحلة غير مرسومة — رموز مطاراتها ليست في القائمة، فلا إحداثيات لها.',
+        other: '{n} رحلة غير مرسومة — رموز مطاراتها ليست في القائمة، فلا إحداثيات لها.'
+      }
+    },
+
+    /* Thirty-one rough anchors, only ever read inside the caption sentence:
+       "centred on the Levant". The English must stay character-for-character
+       what routeglobe.js falls back to, or the two would drift apart. */
+    'globe.region.arabianGulf':         { en: 'the Arabian Gulf', ar: 'الخليج العربي' },
+    'globe.region.levant':              { en: 'the Levant', ar: 'بلاد الشام' },
+    'globe.region.redSea':              { en: 'the Red Sea', ar: 'البحر الأحمر' },
+    'globe.region.northAfrica':         { en: 'North Africa', ar: 'شمال أفريقيا' },
+    'globe.region.westAfrica':          { en: 'West Africa', ar: 'غرب أفريقيا' },
+    'globe.region.eastAfrica':          { en: 'East Africa', ar: 'شرق أفريقيا' },
+    'globe.region.southernAfrica':      { en: 'southern Africa', ar: 'جنوب أفريقيا' },
+    'globe.region.westernEurope':       { en: 'western Europe', ar: 'غرب أوروبا' },
+    'globe.region.northernEurope':      { en: 'northern Europe', ar: 'شمال أوروبا' },
+    'globe.region.easternEurope':       { en: 'eastern Europe', ar: 'شرق أوروبا' },
+    'globe.region.mediterranean':       { en: 'the Mediterranean', ar: 'البحر المتوسط' },
+    /* the key is spelled the way routeglobe.js spells it, ü and all dropped */
+    'globe.region.trkiyeCaucasus':      { en: 'Türkiye and the Caucasus', ar: 'تركيا والقوقاز' },
+    'globe.region.centralAsia':         { en: 'Central Asia', ar: 'آسيا الوسطى' },
+    'globe.region.siberia':             { en: 'Siberia', ar: 'سيبيريا' },
+    'globe.region.southAsia':           { en: 'South Asia', ar: 'جنوب آسيا' },
+    'globe.region.southEastAsia':       { en: 'South East Asia', ar: 'جنوب شرق آسيا' },
+    'globe.region.eastAsia':            { en: 'East Asia', ar: 'شرق آسيا' },
+    'globe.region.japanKorea':          { en: 'Japan and Korea', ar: 'اليابان وكوريا' },
+    'globe.region.australia':           { en: 'Australia', ar: 'أستراليا' },
+    'globe.region.southPacific':        { en: 'the South Pacific', ar: 'جنوب المحيط الهادئ' },
+    'globe.region.northPacific':        { en: 'the North Pacific', ar: 'شمال المحيط الهادئ' },
+    'globe.region.westernNorthAmerica': { en: 'western North America', ar: 'غرب أمريكا الشمالية' },
+    'globe.region.centralNorthAmerica': { en: 'central North America', ar: 'وسط أمريكا الشمالية' },
+    'globe.region.easternNorthAmerica': { en: 'eastern North America', ar: 'شرق أمريكا الشمالية' },
+    'globe.region.caribbean':           { en: 'the Caribbean', ar: 'البحر الكاريبي' },
+    'globe.region.southAmerica':        { en: 'South America', ar: 'أمريكا الجنوبية' },
+    'globe.region.northAtlantic':       { en: 'the North Atlantic', ar: 'شمال الأطلسي' },
+    'globe.region.southAtlantic':       { en: 'the South Atlantic', ar: 'جنوب الأطلسي' },
+    'globe.region.indianOcean':         { en: 'the Indian Ocean', ar: 'المحيط الهندي' },
+    'globe.region.arctic':              { en: 'the Arctic', ar: 'القطب الشمالي' },
+    'globe.region.antarctica':          { en: 'Antarctica', ar: 'القارة القطبية الجنوبية' },
+
+    /* --------------------------------------------------------- window seat */
+    /* The first four are concatenated with a single space, in this order, and
+       the middle two only when the row carries those fields — so each one has
+       to read as a whole sentence on its own. The ws.sky.* values are dropped
+       into ws.alt at {sky} as a noun phrase, never a sentence. */
+
+    'ws.alt': {
+      en: 'A view out of a cabin window at flight level 350 on {flight}, {route}, {day}. Outside is {sky}, with the wing entering the lower part of the frame.',
+      ar: 'منظر من نافذة الطائرة على مستوى الطيران 350 في {flight}، {route}، {day}. في الخارج {sky}، والجناح يدخل أسفل الإطار.'
+    },
+    'ws.alt.aircraft':   { en: 'The aircraft is a {aircraft}.', ar: 'الطائرة {aircraft}.' },
+    'ws.alt.seat':       { en: 'The seat is {seat}.', ar: 'المقعد {seat}.' },
+    'ws.alt.how':        { en: 'Drag, or use the arrow keys, to look around.', ar: 'اسحب، أو استخدم مفاتيح الأسهم، لتنظر حولك.' },
+    'ws.dialog':         { en: 'Window seat — {flight}, {route}', ar: 'مقعد النافذة — {flight}، {route}' },
+    'ws.eyes': {
+      en: 'The view out of the window. Use the arrow keys to look around.',
+      ar: 'المنظر من النافذة. استخدم مفاتيح الأسهم لتنظر حولك.'
+    },
+    'ws.route':          { en: '{from} to {to}', ar: 'من {from} إلى {to}' },
+    'ws.airport.unlisted': { en: 'an unlisted airport', ar: 'مطار غير مدرج' },
+    'ws.flight':         { en: 'Flight', ar: 'رحلة' },
+    'ws.flight.this':    { en: 'this flight', ar: 'هذه الرحلة' },
+    'ws.seat':           { en: 'seat {seat}', ar: 'مقعد {seat}' },
+    'ws.cruise':         { en: 'cruise · 35,000 ft', ar: 'طيران مستقر · 35,000 قدم' },
+    'ws.gyro':           { en: 'Look with your phone', ar: 'انظر بهاتفك' },
+    'ws.gyro.title':     { en: 'Look around by moving the phone', ar: 'انظر حولك بتحريك الهاتف' },
+    'ws.gyro.refused': {
+      en: 'This device will not report its movement. Drag to look around instead.',
+      ar: 'هذا الجهاز لا يُبلّغ عن حركته. اسحب بإصبعك لتنظر حولك بدلًا من ذلك.'
+    },
+    'ws.vr':             { en: 'Cardboard VR', ar: 'نظارة كاردبورد' },
+    'ws.vr.title':       { en: 'Split the view for a Cardboard-style headset', ar: 'اقسم المنظر لنظارة من نوع كاردبورد' },
+    'ws.close':          { en: 'Close', ar: 'إغلاق' },
+    'ws.close.title':    { en: 'Close the window seat', ar: 'إغلاق مقعد النافذة' },
+    'ws.hint': {
+      en: 'Turn the phone on its side, then slide it into the headset.',
+      ar: 'أدر الهاتف على جانبه، ثم أدخله في النظارة.'
+    },
+    'ws.sky.night':      { en: 'night, with stars over a dark cloud deck', ar: 'ليل ونجوم فوق طبقة غيوم داكنة' },
+    'ws.sky.dawn':       { en: 'the indigo hour before dawn', ar: 'الساعة النيلية قبل الفجر' },
+    'ws.sky.dusk':       { en: 'the indigo hour after sunset', ar: 'الساعة النيلية بعد الغروب' },
+    'ws.sky.sunrise':    { en: 'sunrise gold laid along the horizon', ar: 'ذهب الشروق ممدود على الأفق' },
+    'ws.sky.golden':     { en: 'the long orange light of late afternoon', ar: 'ضوء العصر البرتقالي الطويل' },
+    'ws.sky.day':        { en: 'flat daylight blue over a bright cloud deck', ar: 'زرقة نهار مستوية فوق طبقة غيوم مضيئة' },
+
+    /* ------------------------------------------------------------ the wait */
+    /* The line under the departure board while a page loads. Short, because
+       it is on screen for about half a second, and present tense, because it
+       describes something happening rather than promising it.
+
+       The board itself is not in here. It is a split-flap board, Arabic is
+       cursive, and one letter per cell would spell nonsense — so on an Arabic
+       page waiting.js drops the board and sets this sentence large instead. */
+
+    'wait.logbook':   { en: 'Opening your locker',         ar: 'نفتح خزانتك' },
+    'wait.login':     { en: 'Taking you to the door',      ar: 'نأخذك إلى الباب' },
+    'wait.signup':    { en: 'Finding you a locker',        ar: 'نجهّز لك خزانة' },
+    'wait.share':     { en: 'Fetching that boarding pass', ar: 'نُحضر بطاقة الصعود' },
+    'wait.home':      { en: 'Back to the front',           ar: 'عودة إلى الواجهة' },
+    'wait.generic':   { en: 'One moment',                  ar: 'لحظة واحدة' },
+    'wait.creating':  { en: 'Building your locker',        ar: 'نبني خزانتك' },
+    'wait.signingin': { en: 'Checking your key',           ar: 'نتحقق من مفتاحك' }
   };
 })();

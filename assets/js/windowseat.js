@@ -23,14 +23,38 @@
 
   var RAD = Math.PI / 180;
 
-  /* Limits on where the head can go. Yaw stops before the fuselage would be
-     in the way, and pitch stops well short of rolling the world over.
+  /* Limits on where the head can go. These are not taste. They are what the
+     scenery in windowseat.css is sized against, and raising either one
+     without going back to that file puts a plate's own edge inside the
+     window — a hard vertical cut with sky on one side and nothing on the
+     other.
 
-     They are also what the scenery is sized against in windowseat.css: how
-     far a plate has to reach before its edge comes into the aperture, and how
-     near the cloud deck has to come before looking down runs off it. Raising
-     either number without going back to that file shows an edge. */
-  var YAW_LIMIT = 45;
+     A plate is three viewports across, so its edge sits a fixed distance out
+     and yaw walks the aperture toward it. Worked through the projection on
+     the narrowest screen this site carries — 360px, portrait, where the
+     aperture is .78 of the width — the sky plate's edge reaches the aperture
+     at 26.5 degrees of yaw and the stars at 26.8. Both figures are with pitch
+     at its own stop as well: pitch leaves x alone but tilts the plate toward
+     the eye, and the nearer plate projects wider, which costs about another
+     degree. Take off the 1.1 degrees of idle drift paint() adds and 25.4 is
+     the ceiling. 24 leaves a degree and a half of margin and holds down to
+     about 332px of width.
+
+     Widening the plates instead was the other way out and it is worse than it
+     looks: every plate's artwork is authored in PERCENTAGES of the plate, so
+     a wider plate does not add scenery, it rescales the scenery it has. At
+     the 589% the sky would need for a 45 degree look the sun's bloom goes
+     from a third of a viewport to two thirds and the sky gradient spreads
+     over five and a half viewports instead of three — a redrawing, not a
+     resize. And the look it buys is empty: the sun is out of frame past 22.5
+     degrees as it is.
+
+     Pitch has far more room. A plate is three viewports TALL against an
+     aperture only half the screen high, so no sky edge arrives until about
+     46 degrees. What actually stops pitch is the cloud deck: its near edge
+     lies 44 degrees below the horizon and the bottom of the window is already
+     13 of those, so 22 keeps the look clear of it. */
+  var YAW_LIMIT = 24;
   var PITCH_LIMIT = 22;
 
   /* how much of the look the wing takes, in px and degrees per degree looked */
@@ -38,6 +62,38 @@
   var WING_Y = 0.80;
 
   var state = null;   // the live scene, or null when nothing is open
+
+  /* ------------------------------------------------------------- the words */
+
+  /* Every visible string goes through here with its English written at the
+     call site. i18n.js is optional on a page and this module is a leaf, so
+     the English has to be the thing that ships, not a placeholder waiting on
+     a catalogue.
+
+     FL.i18n.t hands the key straight back when it has no entry for it, which
+     means exactly what no i18n at all means, so both go to the fallback. That
+     also keeps the scene readable while the ws.* keys are still being added
+     rather than printing "ws.close" on a button. */
+  function fill(text, vars) {
+    if (!vars) return String(text);
+    return String(text).replace(/\{(\w+)\}/g, function (whole, name) {
+      var value = vars[name];
+      return value === null || value === undefined ? '' : String(value);
+    });
+  }
+
+  function t(key, fallback, vars) {
+    var out = (FL.i18n && FL.i18n.t) ? FL.i18n.t(key, vars) : null;
+    if (!out || out === key) return fill(fallback, vars);
+    return out;
+  }
+
+  // Arabic month names when the interface is in Arabic, if that module is
+  // loaded. Same shape pass.js uses, for the same reason.
+  function formatDay(value) {
+    if (FL.i18n && typeof FL.i18n.formatDay === 'function') return FL.i18n.formatDay(value);
+    return FL.ui.formatDay(value);
+  }
 
   /* ------------------------------------------------------------ can we run */
 
@@ -136,22 +192,25 @@
     var morning = hourAngle < 0;
     var key, told;
 
+    /* `told` is read aloud, not printed: it is the middle of the sentence in
+       #ws-alt, which is the only description a screen reader gets of what is
+       actually outside. */
     if (elev < -8) {
       key = 'night';
-      told = 'night, with stars over a dark cloud deck';
+      told = t('ws.sky.night', 'night, with stars over a dark cloud deck');
     } else if (elev < 0) {
       key = 'dawn';
       told = morning
-        ? 'the indigo hour before dawn'
-        : 'the indigo hour after sunset';
+        ? t('ws.sky.dawn', 'the indigo hour before dawn')
+        : t('ws.sky.dusk', 'the indigo hour after sunset');
     } else if (elev < (morning ? 12 : 15)) {
       key = morning ? 'sunrise' : 'golden';
       told = morning
-        ? 'sunrise gold laid along the horizon'
-        : 'the long orange light of late afternoon';
+        ? t('ws.sky.sunrise', 'sunrise gold laid along the horizon')
+        : t('ws.sky.golden', 'the long orange light of late afternoon');
     } else {
       key = 'day';
-      told = 'flat daylight blue over a bright cloud deck';
+      told = t('ws.sky.day', 'flat daylight blue over a bright cloud deck');
     }
 
     /* Which way the window faces is not recorded anywhere, so the sun is
@@ -338,29 +397,55 @@
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" ' +
     'stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 
+  /* A partial row is a row the API allows, so no field is concatenated raw.
+     Without the last coalesce a missing IATA reads "undefined to undefined"
+     into the dialog's own name. */
   function label(flight) {
     var geo = FL.geo;
     var a = geo ? geo.airport(flight.from_iata) : null;
     var b = geo ? geo.airport(flight.to_iata) : null;
-    return (a ? a.city : flight.from_iata) + ' to ' + (b ? b.city : flight.to_iata);
+    var unlisted = t('ws.airport.unlisted', 'an unlisted airport');
+    return t('ws.route', '{from} to {to}', {
+      from: a ? a.city : (flight.from_iata || unlisted),
+      to: b ? b.city : (flight.to_iata || unlisted)
+    });
   }
 
   function build(flight, sky) {
     var esc = FL.ui.esc;
-    var day = FL.ui.formatDay(flight.flown_on);
+    var day = formatDay(flight.flown_on);
     var route = label(flight);
+    var flightNo = flight.flight_no || t('ws.flight.this', 'this flight');
 
-    var alt =
-      'A view out of a cabin window at flight level 350 on ' +
-      flight.flight_no + ', ' + route + ', ' + day + '. Outside is ' + sky.told +
-      ', with the wing entering the lower part of the frame. ' +
-      'Drag, or use the arrow keys, to look around.';
+    /* The HUD is aria-hidden, so anything that appears only there — aircraft
+       and seat — has to be said again here or a screen reader gets a smaller
+       description of the flight than the eye does. Sentences rather than one
+       long string, because the two extras are optional and an Arabic
+       translator needs each one whole. */
+    var said = [
+      t('ws.alt',
+        'A view out of a cabin window at flight level 350 on {flight}, ' +
+        '{route}, {day}. Outside is {sky}, with the wing entering the lower ' +
+        'part of the frame.',
+        { flight: flightNo, route: route, day: day, sky: sky.told })
+    ];
+    if (flight.aircraft) {
+      said.push(t('ws.alt.aircraft', 'The aircraft is a {aircraft}.',
+        { aircraft: flight.aircraft }));
+    }
+    if (flight.seat) {
+      said.push(t('ws.alt.seat', 'The seat is {seat}.', { seat: flight.seat }));
+    }
+    said.push(t('ws.alt.how', 'Drag, or use the arrow keys, to look around.'));
+
+    var alt = said.join(' ');
 
     var root = document.createElement('div');
     root.className = 'ws';
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-modal', 'true');
-    root.setAttribute('aria-label', 'Window seat — ' + flight.flight_no + ', ' + route);
+    root.setAttribute('aria-label', t('ws.dialog', 'Window seat — {flight}, {route}',
+      { flight: flightNo, route: route }));
     root.setAttribute('aria-describedby', 'ws-alt');
     root.setAttribute('data-sky', sky.key);
     root.setAttribute('tabindex', '-1');
@@ -371,38 +456,48 @@
       /* A picture that happens to be a focus stop. role=img gives it a name a
          screen reader will read; the tab stop is what makes the arrow keys
          reachable without a mouse. The long description is on the dialog. */
-      '<div class="ws-eyes" tabindex="0" role="img" ' +
-        'aria-label="The view out of the window. Use the arrow keys to look around."></div>' +
+      '<div class="ws-eyes" tabindex="0" role="img" aria-label="' +
+        esc(t('ws.eyes',
+          'The view out of the window. Use the arrow keys to look around.')) +
+        '"></div>' +
 
       '<div class="ws-hud" aria-hidden="true">' +
         '<div class="ws-hud-left">' +
-          '<p class="ws-hud-no" dir="ltr">' + esc(flight.airline || 'Flight') +
-            ' · ' + esc(flight.flight_no) + '</p>' +
+          // a row with no flight number must not print a dangling separator
+          '<p class="ws-hud-no" dir="ltr">' +
+            esc(flight.airline || t('ws.flight', 'Flight')) +
+            (flight.flight_no ? ' · ' + esc(flight.flight_no) : '') + '</p>' +
           '<p class="ws-hud-route" dir="ltr">' + esc(flight.from_iata) +
             '<span class="sep">&#8594;</span>' + esc(flight.to_iata) + '</p>' +
           '<p class="ws-hud-sub">' + esc(route) + ' · ' + esc(day) +
-            (flight.seat ? ' · seat ' + esc(flight.seat) : '') + '</p>' +
+            (flight.seat
+              ? ' · ' + esc(t('ws.seat', 'seat {seat}', { seat: flight.seat }))
+              : '') + '</p>' +
         '</div>' +
         '<div class="ws-hud-right">' +
           '<p class="ws-hud-fl" dir="ltr">FL350</p>' +
-          '<p class="ws-hud-sub">cruise · 35,000 ft' +
+          '<p class="ws-hud-sub">' + esc(t('ws.cruise', 'cruise · 35,000 ft')) +
             (flight.aircraft ? ' · ' + esc(flight.aircraft) : '') + '</p>' +
         '</div>' +
       '</div>' +
 
       '<div class="ws-controls">' +
         '<button type="button" class="ws-btn" data-ws="gyro" aria-pressed="false" hidden ' +
-          'title="Look around by moving the phone">' + ICON_PHONE +
-          '<span>Look with your phone</span></button>' +
+          'title="' + esc(t('ws.gyro.title', 'Look around by moving the phone')) +
+          '">' + ICON_PHONE +
+          '<span>' + esc(t('ws.gyro', 'Look with your phone')) + '</span></button>' +
         '<button type="button" class="ws-btn" data-ws="vr" aria-pressed="false" ' +
-          'title="Split the view for a Cardboard-style headset">' + ICON_VR +
-          '<span>Cardboard VR</span></button>' +
+          'title="' + esc(t('ws.vr.title',
+            'Split the view for a Cardboard-style headset')) + '">' + ICON_VR +
+          '<span>' + esc(t('ws.vr', 'Cardboard VR')) + '</span></button>' +
         '<button type="button" class="ws-btn" data-ws="close" ' +
-          'title="Close the window seat">' + ICON_CLOSE +
-          '<span>Close</span></button>' +
+          'title="' + esc(t('ws.close.title', 'Close the window seat')) +
+          '">' + ICON_CLOSE +
+          '<span>' + esc(t('ws.close', 'Close')) + '</span></button>' +
       '</div>' +
 
-      '<p class="ws-hint">Turn the phone on its side, then slide it into the headset.</p>';
+      '<p class="ws-hint">' + esc(t('ws.hint',
+        'Turn the phone on its side, then slide it into the headset.')) + '</p>';
 
     return root;
   }
@@ -474,8 +569,16 @@
     paint(0);
     state.raf = window.requestAnimationFrame(tick);
 
-    // the button that got us here was a real tap, so this is allowed to ask
-    goFullscreen(root);
+    /* The button that got us here was a real tap, so this is allowed to ask.
+
+       The document and not the scene, even though the scene is what wants the
+       screen. A fullscreen element goes into the top layer, which paints above
+       the whole normal stacking context, and #toasts lives in the body outside
+       this subtree — so fullscreening .ws hides every toast the scene needs to
+       raise, the gyroscope refusal included, on exactly the phones that grant
+       the request. No z-index reaches into the top layer. Fullscreening the
+       document keeps the toast host inside it, where z-index works again. */
+    goFullscreen(document.documentElement);
 
     root.focus();
     var closeBtn = root.querySelector('[data-ws="close"]');
@@ -500,7 +603,7 @@
   function setEyeCount(count) {
     var wanted = count;
     var have = state.eyes.children.length;
-    var i;
+    var i, view;
 
     for (i = have; i < wanted; i++) {
       state.eyes.insertAdjacentHTML('beforeend', eyeMarkup());
@@ -512,6 +615,20 @@
     state.panes = [];
     var views = state.eyes.querySelectorAll('.ws-eye');
     for (i = 0; i < views.length; i++) {
+      /* Stereo is made by moving the EYE, not the world. perspective-origin
+         is literally where the eye is, so shifting it by half the separation
+         gives a true off-axis projection: the frame and the wing sit at z 0
+         and keep zero disparity, which puts the window at the screen plane,
+         and every plate behind it separates in proportion to how far back it
+         is. Sliding the world by a constant instead looks the same at first
+         and is not: the projection then divides that constant by each plate's
+         own distance, so the near cirrus gets MORE separation than the far
+         sky and the two fuse in the wrong order. */
+      view = views[i].querySelector('.ws-view');
+      view.style.perspectiveOrigin = wanted > 1
+        ? 'calc(50% ' + (i === 0 ? '- ' : '+ ') + (state.ipd / 2) + 'px) 50%'
+        : '';
+
       state.panes.push({
         world: views[i].querySelector('.ws-world'),
         ground: views[i].querySelector('.ws-ground'),
@@ -569,12 +686,13 @@
     var wingX = (-yaw * WING_X).toFixed(2);
     var wingY = (pitch * WING_Y).toFixed(2);
 
+    /* Identical for both eyes, and that is the point: the stereo lives in each
+       view's perspective-origin, set once in setEyeCount. Two different world
+       transforms would also step the horizon at the join. */
+    var move =
+      'translate3d(' + slide.toFixed(2) + 'px,' + rise.toFixed(2) + 'px,0)' + rot;
+
     for (var i = 0; i < s.panes.length; i++) {
-      // left eye first: each eye is offset by half the separation
-      var off = s.vr ? (i === 0 ? -s.ipd / 2 : s.ipd / 2) : 0;
-      var move =
-        'translate3d(' + (slide + off).toFixed(2) + 'px,' + rise.toFixed(2) + 'px,0)' + rot;
-      // the same transform on both, or the horizon steps at the join
       s.panes[i].world.style.transform = move;
       s.panes[i].ground.style.transform = move;
       s.panes[i].wing.style.transform =
@@ -767,7 +885,9 @@
       // no scolding and no dead end: the drag was always there and still is
       button.hidden = true;
       if (FL.ui && FL.ui.toast) {
-        FL.ui.toast('This device will not report its movement. Drag to look around instead.', 'info');
+        FL.ui.toast(t('ws.gyro.refused',
+          'This device will not report its movement. Drag to look around instead.'),
+          'info');
       }
     }
 
@@ -836,21 +956,30 @@
   function goFullscreen(node) {
     var ask = node.requestFullscreen || node.webkitRequestFullscreen;
     if (!ask) return;
+    /* Claimed on the way out rather than on the promise, because a member who
+       closes the scene inside that turnaround would otherwise leave the page
+       fullscreen with nothing left that knows to undo it. A refusal puts it
+       back. */
+    state.hadFullscreen = true;
     try {
       var going = ask.call(node);
-      if (going && going.then) {
-        going.then(function () {
-          if (state) state.hadFullscreen = true;
-        })['catch'](function () {});
-      } else {
-        state.hadFullscreen = true;
+      if (going && going['catch']) {
+        going['catch'](function () {
+          if (state) state.hadFullscreen = false;
+        });
       }
     } catch (e) {
+      state.hadFullscreen = false;
       /* iPhone Safari has no element fullscreen: the fixed overlay is enough */
     }
   }
 
   function leaveFullscreen() {
+    /* Only what this module asked for. The page can be fullscreen for a reason
+       that has nothing to do with the scene — the member put it there before
+       opening one — and tearing that down on close would be this module
+       reaching outside itself. */
+    if (!state || !state.hadFullscreen) return;
     var out = document.exitFullscreen || document.webkitExitFullscreen;
     if (!out) return;
     var current = document.fullscreenElement || document.webkitFullscreenElement;

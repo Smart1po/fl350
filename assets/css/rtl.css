@@ -26,6 +26,12 @@
    The language switch — a two-state control, English and العربية
    ========================================================================== */
 
+/* The button carries no .btn class. It is a segmented control, not a button
+   with a label, so it draws its own box here — a .btn-ghost underneath would
+   also outrank the hover state below and swap the ground for a ghost wash on
+   hover, which is not what a segmented control does. Everything the bare
+   <button> needs is written out: the reset in app.css already gives it
+   font: inherit and the global :focus-visible ring. */
 .langswitch {
   display: inline-flex; align-items: center; gap: 2px;
   min-height: 38px; padding: 3px;
@@ -36,7 +42,10 @@
   cursor: pointer;
   transition: border-color .2s ease, background-color .2s ease;
 }
-.langswitch:hover { border-color: hsl(var(--border-strong)); }
+/* :not(:disabled) is the house form for a hover state, and the specificity it
+   buys keeps a class added to the markup later from taking the hover back */
+.langswitch:hover:not(:disabled) { border-color: hsl(var(--border-strong)); }
+.langswitch:disabled { opacity: .55; cursor: not-allowed; }
 
 .langswitch-face {
   display: inline-flex; align-items: center;
@@ -46,18 +55,32 @@
   white-space: nowrap;
   transition: background-color .2s ease, color .2s ease;
 }
-/* the raised face matches .tab in app.css, on purpose: it is the same idea */
+/* the raised face matches .tab in app.css, on purpose: it is the same idea.
+   the lift is mixed from --fg rather than written as a colour, so it moves
+   with the palette. in the light theme that is the same faint ink shadow
+   .tab draws; in the dark one it lands as a hairline of the off-white, where
+   .tab's baked-in navy would have disappeared into the panel anyway. */
 .langswitch-face[data-active="true"] {
   background: hsl(var(--panel));
   color: hsl(var(--fg));
-  box-shadow: 0 1px 2px hsl(222 47% 11% / 0.12);
+  box-shadow: 0 1px 2px hsl(var(--fg) / 0.12);
 }
-.langswitch:hover .langswitch-face:not([data-active="true"]) { color: hsl(var(--fg)); }
+.langswitch:hover:not(:disabled) .langswitch-face:not([data-active="true"]) { color: hsl(var(--fg)); }
 
 /* Arabic letters join. Tracking them apart breaks the join, so the Arabic
    face is never letter-spaced, and is set a shade larger to match the
-   x-height of the Latin one. */
-.langswitch-face[lang="ar"] { letter-spacing: 0; font-size: .875rem; }
+   x-height of the Latin one.
+
+   It also has to ask for --sans by name. Font families are inherited already
+   resolved, so on an English page this span would otherwise be handed the
+   Latin stack its parents computed — Inter, which has no Arabic in it — and
+   "العربية" would drop to whatever the OS picked, at a different weight
+   beside the English face. Naming --sans here re-reads the value the
+   [lang="ar"] rule below sets on this very element. */
+.langswitch-face[lang="ar"] {
+  font-family: var(--sans);
+  letter-spacing: 0; font-size: .875rem;
+}
 
 /* On a 360px bar there is no room for two languages beside the theme switch
    and Sign out — especially not in Arabic, where the words are longer. Below
@@ -69,7 +92,7 @@
     border-color: transparent;
     background: transparent;
   }
-  .langswitch:hover { background: hsl(var(--fg) / 0.07); border-color: transparent; }
+  .langswitch:hover:not(:disabled) { background: hsl(var(--fg) / 0.07); border-color: transparent; }
   .langswitch-face { min-height: 38px; padding: 0 12px; }
   .langswitch-face[data-active="true"] { display: none; }
 }
@@ -85,9 +108,16 @@
    ========================================================================== */
 
 /* Same shape of stack as app.css, with the faces that actually carry Arabic
-   inserted. All of them are already on the reader's machine — the policy on
-   this site allows no font from anywhere else. */
-:root[lang="ar"] {
+   inserted. All of them are already on the reader's machine: the one web font
+   the pages fetch is the Latin set, and none of it has an Arabic glyph, so
+   Arabic is served by the system either way. Inter is dropped from the front
+   here on purpose — a page that mixed Inter for the Latin words with a system
+   face for the Arabic ones around them would read as two typefaces arguing.
+
+   Not :root. Any element carrying lang="ar" gets the stack, so an Arabic word
+   quoted inside an English page — the switch's own Arabic face, above — is
+   set in a face that can actually draw it. */
+[lang="ar"] {
   --sans: system-ui, -apple-system, "Segoe UI", "Noto Naskh Arabic", "Geeza Pro", "Dubai", Tahoma, Arial, sans-serif;
 }
 

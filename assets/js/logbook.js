@@ -12,6 +12,8 @@
   var FL = window.FL350;
   var ui = FL.ui;
   var geo = FL.geo;
+  var t = FL.i18n.t;
+  var formatDay = FL.i18n.formatDay;
 
   var MAX_PHOTO_BYTES = 5 * 1024 * 1024;
   var PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
@@ -23,6 +25,8 @@
   var chosenPhoto = null;      // a File the member picked but has not saved yet
   var removePhoto = false;     // they asked for the existing one to come off
   var previewUrl = null;       // object URL for that File, revoked when done
+  var opened = false;          // the member is in and their rows have arrived
+  var loadError = null;        // set instead, when the locker would not open
 
   /* -------------------------------------------------------------- the DOM */
 
@@ -131,21 +135,24 @@
     var laps = totalKm / 40075; // times around the Earth at the equator
 
     el.stats.innerHTML =
-      tile('Flights', ui.number(flights.length), thisYear + ' in ' + currentYear) +
+      tile(t('stat.flights'), ui.number(flights.length),
+        t('stat.flights.sub', { n: thisYear, year: currentYear })) +
       tile(
-        'Distance',
-        ui.number(totalKm) + ' <small>km</small>',
+        t('stat.distance'),
+        ui.number(totalKm) + ' <small>' + ui.esc(t('unit.km')) + '</small>',
         measured === flights.length
-          ? (laps >= 0.1 ? '≈ ' + laps.toFixed(1) + '× around the Earth' : 'approximate, great circle')
-          : measured + ' of ' + flights.length + ' legs measured'
+          ? (laps >= 0.1
+              ? t('stat.distance.laps', { laps: laps.toFixed(1) })
+              : t('stat.distance.approx'))
+          : t('stat.distance.measured', { n: measured, total: flights.length })
       ) +
-      tile('Airlines', ui.number(Object.keys(airlines).length),
-        topAirline ? 'most often ' + topAirline.value : '') +
-      tile('Airports', ui.number(Object.keys(airports).length),
+      tile(t('stat.airlines'), ui.number(Object.keys(airlines).length),
+        topAirline ? t('stat.airlines.sub', { name: topAirline.value }) : '') +
+      tile(t('stat.airports'), ui.number(Object.keys(airports).length),
         topRoute && topRoute.count > 1
-          ? topRoute.value + ' × ' + topRoute.count
+          ? t('stat.airports.route', { route: topRoute.value, n: topRoute.count })
           : longest
-            ? 'longest ' + routeKey(longest.flight) + ', ' + ui.number(longest.km) + ' km'
+            ? t('stat.airports.longest', { route: routeKey(longest.flight), km: longest.km })
             : '');
   }
 
@@ -211,21 +218,23 @@
       el.count.textContent = '';
       el.list.innerHTML = state({
         icon: FL.pass.icon.empty,
-        title: 'Nothing here yet. Add your first flight.',
-        body: 'One boarding pass per flight you have taken. Only you will ever see them.',
-        action: '<button type="button" class="btn" data-add-flight><span>Add a flight</span></button>'
+        title: t('state.empty.title'),
+        body: t('state.empty.body'),
+        action: '<button type="button" class="btn" data-add-flight><span>' +
+          ui.esc(t('book.add')) + '</span></button>'
       });
       wireAddButtons();
       return;
     }
 
     if (!rows.length) {
-      el.count.textContent = 'No matches';
+      el.count.textContent = t('book.count.nomatches');
       el.list.innerHTML = state({
         icon: FL.pass.icon.empty,
-        title: 'No flights match that.',
-        body: 'Nothing in the locker matches what you typed. The flights are all still there.',
-        action: '<button type="button" class="btn btn-outline" id="clear-filters"><span>Clear the filters</span></button>'
+        title: t('state.nomatch.title'),
+        body: t('state.nomatch.body'),
+        action: '<button type="button" class="btn btn-outline" id="clear-filters"><span>' +
+          ui.esc(t('state.nomatch.clear')) + '</span></button>'
       });
       var clear = document.getElementById('clear-filters');
       if (clear) {
@@ -240,8 +249,8 @@
     }
 
     el.count.textContent = filtering
-      ? rows.length + ' of ' + flights.length + (flights.length === 1 ? ' flight' : ' flights')
-      : flights.length + (flights.length === 1 ? ' flight' : ' flights');
+      ? t('book.count.filtered', { n: rows.length, total: flights.length, count: flights.length })
+      : t('book.count', { n: flights.length });
 
     el.list.innerHTML =
       '<ul class="passes">' +
@@ -301,7 +310,7 @@
     var chosen = el.year.value;
 
     el.year.innerHTML =
-      '<option value="all">Every year</option>' +
+      '<option value="all">' + ui.esc(t('book.year.all')) + '</option>' +
       sorted.map(function (year) { return '<option value="' + year + '">' + year + '</option>'; }).join('');
 
     el.year.value = years[chosen] ? chosen : 'all';
@@ -320,7 +329,7 @@
     var flight = byId(id);
     if (!flight) return;
     if (!FL.windowseat || !FL.windowseat.isSupported()) {
-      ui.toast('The window seat needs a browser with CSS 3D transforms.', 'bad');
+      ui.toast(t('toast.ws.unsupported'), 'bad');
       return;
     }
     FL.windowseat.open(flight);
@@ -334,14 +343,22 @@
 
   function paintShareSheet(flight) {
     el.shareLink.value = shareUrlFor(flight.id);
-    el.shareWhat.textContent =
-      'Anyone with this link sees ' + flight.airline + ' ' + flight.flight_no + ', ' +
-      flight.from_iata + ' to ' + flight.to_iata + ' on ' + ui.formatDay(flight.flown_on) +
-      (flight.aircraft ? ', on a ' + flight.aircraft : '') +
-      (flight.seat ? ', seat ' + flight.seat : '') + '. ' +
-      (flight.note
-        ? 'Your note stays private — the share link cannot return it.'
-        : 'Your note stays private if you add one later.');
+    // whole sentences rather than one comma-chained line: the aircraft and the
+    // seat are optional, and a translator needs each part to stand on its own
+    var said = [
+      t('share.what', {
+        airline: flight.airline,
+        flightNo: flight.flight_no,
+        from: flight.from_iata,
+        to: flight.to_iata,
+        date: formatDay(flight.flown_on)
+      })
+    ];
+    if (flight.aircraft) said.push(t('share.what.aircraft', { aircraft: flight.aircraft }));
+    if (flight.seat) said.push(t('share.what.seat', { seat: flight.seat }));
+    said.push(t(flight.note ? 'share.what.note' : 'share.what.nonote'));
+
+    el.shareWhat.textContent = said.join(' ');
   }
 
   function openShare(id, button) {
@@ -368,7 +385,7 @@
       },
       function (err) {
         ui.busy(button, false);
-        ui.toast(err.message || 'That could not be shared.', 'bad');
+        ui.toast(err.message || t('toast.sharefail'), 'bad');
       }
     );
   }
@@ -378,11 +395,11 @@
     function fallback() {
       el.shareLink.focus();
       el.shareLink.select();
-      ui.toast('Link selected — copy it with Ctrl+C.', 'info');
+      ui.toast(t('toast.link.selected'), 'info');
     }
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(
-        function () { ui.toast('Link copied.'); },
+        function () { ui.toast(t('toast.link.copied')); },
         fallback
       );
     } else {
@@ -401,11 +418,11 @@
         pendingShareId = null;
         flights = flights.map(function (f) { return f.id === row.id ? row : f; });
         renderAll();
-        ui.toast('Sharing switched off. The link is dead.');
+        ui.toast(t('toast.share.off'));
       },
       function (err) {
         ui.busy(el.shareStop, false);
-        ui.toast(err.message || 'That could not be changed.', 'bad');
+        ui.toast(err.message || t('toast.share.changefail'), 'bad');
       }
     );
   });
@@ -456,7 +473,7 @@
     link.remove();
     window.setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
 
-    ui.toast('Downloaded ' + (lines.length - 1) + ' flights. The file includes your private notes.', 'info');
+    ui.toast(t('toast.exported', { n: lines.length - 1 }), 'info');
   }
 
   if (el.exportBtn) el.exportBtn.addEventListener('click', exportCsv);
@@ -488,11 +505,15 @@
 
     if (chosenPhoto && previewUrl) {
       el.photoPreview.innerHTML =
-        '<img class="photo-thumb" alt="The photograph you just chose." src="' + ui.esc(previewUrl) + '">' +
+        '<img class="photo-thumb" alt="' + ui.esc(t('photo.alt.chosen')) + '" src="' +
+          ui.esc(previewUrl) + '">' +
         '<div class="photo-side">' +
-          '<p class="caption">' + ui.esc(chosenPhoto.name) + ' · ' +
-            Math.round(chosenPhoto.size / 1024) + ' KB</p>' +
-          '<button type="button" class="btn btn-ghost" data-photo-clear><span>Choose another</span></button>' +
+          '<p class="caption">' + ui.esc(t('photo.chosen', {
+            name: chosenPhoto.name,
+            kb: Math.round(chosenPhoto.size / 1024)
+          })) + '</p>' +
+          '<button type="button" class="btn btn-ghost" data-photo-clear><span>' +
+            ui.esc(t('photo.another')) + '</span></button>' +
         '</div>';
     } else if (flight && flight.photo_path && !removePhoto) {
       el.photoPreview.innerHTML =
@@ -500,15 +521,17 @@
           '<div class="skeleton photo-thumb"></div>' +
         '</figure>' +
         '<div class="photo-side">' +
-          '<p class="caption">Already attached to this flight.</p>' +
-          '<button type="button" class="btn btn-ghost" data-photo-remove><span>Take it off</span></button>' +
+          '<p class="caption">' + ui.esc(t('photo.attached')) + '</p>' +
+          '<button type="button" class="btn btn-ghost" data-photo-remove><span>' +
+            ui.esc(t('photo.remove')) + '</span></button>' +
         '</div>';
       FL.pass.hydratePhotos(el.photoPreview);
     } else if (removePhoto) {
       el.photoPreview.innerHTML =
         '<div class="photo-side">' +
-          '<p class="caption">The photograph will come off when you save.</p>' +
-          '<button type="button" class="btn btn-ghost" data-photo-keep><span>Keep it after all</span></button>' +
+          '<p class="caption">' + ui.esc(t('photo.willremove')) + '</p>' +
+          '<button type="button" class="btn btn-ghost" data-photo-keep><span>' +
+            ui.esc(t('photo.keep')) + '</span></button>' +
         '</div>';
     } else {
       el.photoPreview.innerHTML = '';
@@ -531,13 +554,13 @@
       if (!file) { clearPhotoChoice(); paintPhotoArea(byId(editingId)); return; }
 
       if (PHOTO_TYPES.indexOf(file.type) === -1) {
-        fieldError(el.photoInput, 'JPEG, PNG, WebP or AVIF only.');
+        fieldError(el.photoInput, t('form.err.photo.type'));
         clearPhotoChoice();
         paintPhotoArea(byId(editingId));
         return;
       }
       if (file.size > MAX_PHOTO_BYTES) {
-        fieldError(el.photoInput, 'That is ' + Math.round(file.size / 1024 / 1024) + ' MB. The limit is 5 MB.');
+        fieldError(el.photoInput, t('form.err.photo.size', { mb: Math.round(file.size / 1024 / 1024) }));
         clearPhotoChoice();
         paintPhotoArea(byId(editingId));
         return;
@@ -561,7 +584,7 @@
     var flight = editingId ? byId(editingId) : null;
 
     if (flight) {
-      el.sheetTitle.textContent = 'Edit ' + flight.flight_no;
+      el.sheetTitle.textContent = t('sheet.edit.title', { flightNo: flight.flight_no });
       el.f.flight_no.value = flight.flight_no || '';
       el.f.airline.value = flight.airline || '';
       el.f.from_iata.value = flight.from_iata || '';
@@ -570,10 +593,10 @@
       el.f.aircraft.value = flight.aircraft || '';
       el.f.seat.value = flight.seat || '';
       el.f.note.value = flight.note || '';
-      el.save.querySelector('span').textContent = 'Save changes';
+      el.save.querySelector('span').textContent = t('sheet.save.edit');
     } else {
-      el.sheetTitle.textContent = 'Add a flight';
-      el.save.querySelector('span').textContent = 'Add to my locker';
+      el.sheetTitle.textContent = t('sheet.add.title');
+      el.save.querySelector('span').textContent = t('sheet.save.add');
     }
 
     paintPhotoArea(flight);
@@ -593,39 +616,39 @@
     var ok = true;
 
     var flightNo = f.flight_no.value.trim();
-    if (!flightNo) ok = fieldError(f.flight_no, 'Which flight was it?') && ok;
+    if (!flightNo) ok = fieldError(f.flight_no, t('form.err.flightno.empty')) && ok;
     else if (flightNo.length < 2 || flightNo.length > 10) {
-      ok = fieldError(f.flight_no, 'Between 2 and 10 characters, like KU 681.') && ok;
+      ok = fieldError(f.flight_no, t('form.err.flightno.len')) && ok;
     } else ok = fieldError(f.flight_no, '') && ok;
 
     var airline = f.airline.value.trim();
-    if (!airline) ok = fieldError(f.airline, 'Which airline?') && ok;
-    else if (airline.length < 2) ok = fieldError(f.airline, 'A little more than that.') && ok;
+    if (!airline) ok = fieldError(f.airline, t('form.err.airline.empty')) && ok;
+    else if (airline.length < 2) ok = fieldError(f.airline, t('form.err.airline.short')) && ok;
     else ok = fieldError(f.airline, '') && ok;
 
     var from = f.from_iata.value.trim().toUpperCase();
     var to = f.to_iata.value.trim().toUpperCase();
 
-    if (!/^[A-Z]{3}$/.test(from)) ok = fieldError(f.from_iata, 'Three letters, like KWI.') && ok;
+    if (!/^[A-Z]{3}$/.test(from)) ok = fieldError(f.from_iata, t('form.err.from')) && ok;
     else ok = fieldError(f.from_iata, '') && ok;
 
-    if (!/^[A-Z]{3}$/.test(to)) ok = fieldError(f.to_iata, 'Three letters, like ICN.') && ok;
-    else if (to === from) ok = fieldError(f.to_iata, 'A flight has to land somewhere else.') && ok;
+    if (!/^[A-Z]{3}$/.test(to)) ok = fieldError(f.to_iata, t('form.err.to')) && ok;
+    else if (to === from) ok = fieldError(f.to_iata, t('form.err.same')) && ok;
     else ok = fieldError(f.to_iata, '') && ok;
 
     var date = f.flown_on.value;
-    if (!date) ok = fieldError(f.flown_on, 'When did you fly?') && ok;
+    if (!date) ok = fieldError(f.flown_on, t('form.err.date.empty')) && ok;
     else if (date > ui.todayISO()) {
-      ok = fieldError(f.flown_on, 'This is a log of flights you have taken, so not the future.') && ok;
+      ok = fieldError(f.flown_on, t('form.err.date.future')) && ok;
     } else ok = fieldError(f.flown_on, '') && ok;
 
     var seat = f.seat.value.trim();
     if (seat && !/^[0-9]{1,3}[A-Za-z]$/.test(seat)) {
-      ok = fieldError(f.seat, 'Like 32A — a row number and one letter.') && ok;
+      ok = fieldError(f.seat, t('form.err.seat')) && ok;
     } else ok = fieldError(f.seat, '') && ok;
 
     if (f.note.value.length > 2000) {
-      ok = fieldError(f.note, 'A bit long — 2000 characters at most.') && ok;
+      ok = fieldError(f.note, t('form.err.note.long')) && ok;
     } else ok = fieldError(f.note, '') && ok;
 
     return ok;
@@ -662,14 +685,14 @@
 
     var path = FL.photos.pathFor(row.id, chosenPhoto);
     if (!path) {
-      ui.toast('That photograph could not be named. The flight was saved without it.', 'bad');
+      ui.toast(t('toast.photo.unnamed'), 'bad');
       return Promise.resolve(row);
     }
 
     return FL.photos.upload(path, chosenPhoto)
       .then(function () { return FL.flights.update(row.id, { photo_path: path }); })
       .catch(function (err) {
-        ui.toast('The flight was saved, but the photograph was not: ' + (err.message || ''), 'bad');
+        ui.toast(t('toast.photo.failed', { reason: err.message || '' }), 'bad');
         return row;
       });
   }
@@ -696,16 +719,18 @@
 
         if (wasEditing) {
           flights = flights.map(function (f) { return f.id === row.id ? row : f; });
-          ui.toast(row.flight_no + ' updated.');
+          ui.toast(t('toast.updated', { flightNo: row.flight_no }));
         } else {
           flights.unshift(row);
-          ui.toast('Saved. ' + row.flight_no + ', ' + row.from_iata + ' to ' + row.to_iata + '.');
+          ui.toast(t('toast.saved', {
+            flightNo: row.flight_no, from: row.from_iata, to: row.to_iata
+          }));
         }
         renderAll();
       })
       .catch(function (err) {
         ui.busy(el.save, false);
-        ui.toast(err.message || 'That did not save.', 'bad');
+        ui.toast(err.message || t('toast.savefail'), 'bad');
       });
   });
 
@@ -719,11 +744,17 @@
     var flight = byId(id);
     if (!flight) return;
     pendingDeleteId = id;
-    el.confirmText.textContent =
-      'Remove ' + flight.flight_no + ', ' + flight.from_iata + ' to ' + flight.to_iata +
-      ' on ' + ui.formatDay(flight.flown_on) + '?' +
-      (flight.photo_path ? ' The photograph goes with it.' : '') +
-      ' This cannot be undone.';
+    var asked = [
+      t('confirm.text', {
+        flightNo: flight.flight_no,
+        from: flight.from_iata,
+        to: flight.to_iata,
+        date: formatDay(flight.flown_on)
+      })
+    ];
+    if (flight.photo_path) asked.push(t('confirm.photo'));
+    asked.push(t('confirm.undone'));
+    el.confirmText.textContent = asked.join(' ');
     el.confirm.showModal();
     el.confirmNo.focus();
   }
@@ -753,12 +784,12 @@
         pendingDeleteId = null;
         flights = flights.filter(function (f) { return f.id !== id; });
         renderAll();
-        ui.toast('Flight removed.');
+        ui.toast(t('toast.removed'));
       })
       .catch(function (err) {
         ui.busy(el.confirmYes, false);
         el.confirm.close();
-        ui.toast(err.message || 'That did not delete.', 'bad');
+        ui.toast(err.message || t('toast.deletefail'), 'bad');
       });
   });
 
@@ -827,19 +858,48 @@
     el.list.innerHTML = state({
       bad: true,
       icon: FL.pass.icon.lock,
-      title: isConfig ? 'The site cannot reach its settings.' : 'Could not open the locker.',
+      title: t(isConfig ? 'state.config.title' : 'state.load.title'),
       body: isConfig
-        ? 'This is the classic one: it works on a laptop and breaks on the live site because the database keys are not in the Vercel project.'
-        : (err && err.message) || 'Something went wrong on the way to the database.',
-      pre: isConfig
-        ? 'Vercel · Project · Settings · Environment Variables\n  SUPABASE_URL\n  SUPABASE_PUBLISHABLE_KEY\nthen Redeploy — variables only reach the next build.'
-        : null,
-      action: '<button type="button" class="btn btn-outline" id="retry-load"><span>Try again</span></button>'
+        ? t('state.config.body')
+        : (err && err.message) || t('state.load.body'),
+      pre: isConfig ? t('state.config.pre') : null,
+      action: '<button type="button" class="btn btn-outline" id="retry-load"><span>' +
+        ui.esc(t('state.retry')) + '</span></button>'
     });
 
     var retry = document.getElementById('retry-load');
     if (retry) retry.addEventListener('click', function () { location.reload(); });
   }
+
+  // session.js still answers 'there' when the account has no name of its own,
+  // and "Welcome back, there." would put an English word in the middle of an
+  // Arabic sentence. Until that file returns null instead, the fallback is
+  // recognised here and the nameless greeting used.
+  function paintGreeting() {
+    var who = FL.session.name();
+    el.greeting.textContent = who && who !== 'there'
+      ? t('book.greeting', { name: who })
+      : t('book.greeting.plain');
+  }
+
+  // Switching language re-renders from the rows already in memory: nothing is
+  // refetched, so nothing can be lost. The DOM sweep in i18n.js has already run
+  // by the time this fires, and it has just put the loading greeting back on
+  // #greeting from the attribute — which is why the greeting is repainted here.
+  // The globe's caption is generated rather than marked up, so renderAll() is
+  // also what reaches it; FL.routeglobe.render is idempotent and will not draw
+  // the arcs in a second time.
+  document.addEventListener('fl350:langchange', function () {
+    if (loadError) {
+      el.greeting.textContent = t('book.greeting.plain');
+      showLoadFailure(loadError);
+      return;
+    }
+    if (!opened) return; // still loading: the skeleton has no words in it
+    paintGreeting();
+    el.sub.textContent = t('book.sub');
+    renderAll();
+  });
 
   el.list.innerHTML =
     '<div class="passes" aria-hidden="true">' +
@@ -851,8 +911,9 @@
     .requireMember()
     .then(function () {
       FL.session.mountTopbar();
-      el.greeting.textContent = 'Welcome back, ' + FL.session.name() + '.';
-      el.sub.textContent = 'This is your locker. Nobody else can open it.';
+      opened = true;
+      paintGreeting();
+      el.sub.textContent = t('book.sub');
       fillDatalists();
       wireAddButtons();
       return FL.flights.list();
@@ -863,7 +924,9 @@
     })
     .catch(function (err) {
       FL.session.mountTopbar();
-      el.greeting.textContent = 'Welcome back.';
+      opened = false;
+      loadError = err;
+      el.greeting.textContent = t('book.greeting.plain');
       el.sub.textContent = '';
       showLoadFailure(err);
     });

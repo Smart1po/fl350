@@ -69,10 +69,20 @@
      reason the layers separate. */
   --ws-neck:        96;
 
-  /* Half the eye separation, in scene px. A literal 63 mm would be wrong
-     here: the scene's depths are compressed, so a true-scale offset puts the
-     sky at a divergence that hurts. This is tuned to the compression. */
-  --ws-ipd:         32;
+  /* The FULL eye separation, in scene px — windowseat.js halves it to place
+     each eye. A literal 63 mm would be wrong here: the scene's depths are
+     compressed, so a true-scale offset puts the sky at a divergence that
+     hurts. This is tuned to the compression.
+
+     It is also the disparity the FURTHEST plate carries, because the eyes are
+     moved by their own perspective-origin rather than the world being slid: an
+     off-axis projection sends a plate at infinity to the full separation and
+     the window frame at z 0 to none at all, with every plate between them
+     taking a share. 22 rather than the 32 this was while the world was slid,
+     because the widest separation in the scene used to fall on the nearest
+     plate at 17 px and this keeps the widest — now the sky — where the eyes
+     were already used to it. */
+  --ws-ipd:         22;
 
   /* --- window geometry --------------------------------------------------
      Sized in viewport units rather than percentages, so that other pieces can
@@ -240,10 +250,18 @@ html.ws-open .toasts { z-index: 61; }
    The two eyes
    ========================================================================== */
 
+/* direction is pinned, and this is the one place in the sheet where that is
+   not a style choice. The scene hangs off <body>, so under the Arabic dir the
+   flex main axis reverses and the first .ws-eye — the one windowseat.js drives
+   as the LEFT eye — is painted in the right half of the screen. In a headset
+   that swaps the two images, which inverts every disparity and fuses the whole
+   sky in front of the window. A pair of eyes is a physical left and right, not
+   an inline flow, so it does not follow the language. */
 .ws-eyes {
   position: absolute;
   inset: 0;
   display: flex;
+  direction: ltr;
   gap: 0;
   touch-action: none;        /* the drag is a look, never a page scroll */
   cursor: grab;
@@ -358,8 +376,11 @@ html.ws-open .toasts { z-index: 61; }
 
 .ws-glow {
   --ws-plate-z: var(--ws-z-glow);
+  /* --ws-glow-w has no fallback because it is set unconditionally above; a
+     dead second number here is a trap for whoever tunes this next. The other
+     two are genuinely unset until windowseat.js writes them. */
   background-image: radial-gradient(
-    ellipse var(--ws-glow-w, 34%) var(--ws-glow-h, 20%) at var(--ws-glow-x, 50%) 50%,
+    ellipse var(--ws-glow-w) var(--ws-glow-h, 20%) at var(--ws-glow-x, 50%) 50%,
     hsl(var(--ws-glow) / var(--ws-glow-o)) 0%,
     hsl(var(--ws-glow) / calc(var(--ws-glow-o) * .35)) 38%,
     hsl(var(--ws-glow) / 0) 72%
@@ -391,9 +412,14 @@ html.ws-open .toasts { z-index: 61; }
   top: 50%;
   /* Sized to what the pitch clamp can actually reach and not a pixel more.
      The near edge lands about 44 degrees below the horizon; the bottom of the
-     window is 13 and the clamp adds 26, so it is never reached. Guessing large
-     instead would cost tens of megabytes of texture on a phone for a strip of
-     cloud nobody can look at. */
+     window is 13 and PITCH_LIMIT plus its drift adds 22.75, so it is never
+     reached. Guessing large instead would cost tens of megabytes of texture
+     on a phone for a strip of cloud nobody can look at.
+
+     Yaw does not need this square to grow. Past about 24 degrees the frame is
+     looking off the side of the deck, but the fade below reaches full haze
+     well before the edge does, and the sky plate is the same haze under the
+     horizon — so the plane runs out into the horizon rather than stopping. */
   width: 3400px;
   height: 3400px;
   margin: -1700px 0 0 -1700px;
@@ -682,6 +708,19 @@ html.ws-open .toasts { z-index: 61; }
 }
 .ws[data-looking="1"] .ws-controls { opacity: .35; }
 
+/* Straddling the seam once the view is split. Against the whole screen the
+   inline end is the far right, which is inside the RIGHT eye's half only — so
+   in a headset the left eye cannot see the way out at all, and the row is
+   single-eye content in the periphery that will not fuse. Centred, each eye
+   sees it on its own inner edge. */
+.ws[data-vr="1"] .ws-controls {
+  inset-inline-end: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  justify-content: center;
+  max-width: 100vw;
+}
+
 .ws-btn {
   position: relative;
   display: inline-flex;
@@ -742,6 +781,9 @@ html.ws-open .toasts { z-index: 61; }
   font-size: .8125rem;
   text-align: center;
   display: none;
+  /* it is a note, not a target. Without this it sits over the scene in
+     portrait and eats the pointerdown of any drag begun on that strip. */
+  pointer-events: none;
 }
 @media (orientation: portrait) {
   .ws[data-vr="1"] .ws-hint { display: block; }

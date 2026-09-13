@@ -6,6 +6,12 @@
  *    storage at all, leave for the sign-in page immediately — before any of
  *    the locker markup has had a chance to render.
  *
+ * The reading direction is the same kind of before-first-paint job and used to
+ * be a third block here. It is not any more: i18n.js loads in the head right
+ * after this file, also without defer, and sets <html lang> and <html dir>
+ * from its own top-level lines. Two files writing the same two attributes from
+ * the same storage key is one file too many.
+ *
  * This file is deliberately loaded WITHOUT defer, so it runs first. The real
  * check still happens against the server in session.js; this one only makes
  * sure a signed-out visitor never sees the shape of the page.
@@ -20,19 +26,6 @@
     if (theme === 'dark' || theme === 'light') html.setAttribute('data-theme', theme);
   } catch (e) {
     /* storage refused; the media query still decides */
-  }
-
-  // The reading direction has to be right in the very first frame. i18n.js
-  // sets the same two attributes when it loads, but it is a deferred script,
-  // and an Arabic reader would otherwise watch the whole page swap sides.
-  try {
-    var lang = localStorage.getItem('fl350.lang');
-    if (lang === 'ar' || lang === 'en') {
-      html.setAttribute('lang', lang);
-      html.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
-    }
-  } catch (e) {
-    /* the default in the markup stands */
   }
 
   if (html.getAttribute('data-gated') !== 'true') return;

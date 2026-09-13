@@ -25,14 +25,29 @@
   function ui() { return FL.ui; }
   function geo() { return FL.geo; }
 
+  // Read late, the same way ui() and geo() are: this file is deferred and
+  // i18n.js is not, but the share page and the locker load them in different
+  // orders and a captured reference would be the one that was wrong.
+  function t(key, vars) {
+    if (FL.i18n && typeof FL.i18n.t === 'function') return FL.i18n.t(key, vars);
+    return key;
+  }
+
   function legKm(flight) {
     if (!geo() || !ui()) return null;
     return ui().greatCircleKm(geo().airport(flight.from_iata), geo().airport(flight.to_iata));
   }
 
-  function fact(label, value) {
+  // Only one of the three facts is a Latin island now. An aircraft type is
+  // printed the same way in both languages, so it is isolated and marked
+  // lang="en" — without the lang a screen reader on an Arabic page says
+  // "A330-800neo" with Arabic phonemes. The distance and the route are
+  // translated prose with a number or a city name inside them, and forcing
+  // those left to right would put the unit on the wrong side of the figure.
+  function fact(label, value, latin) {
     var esc = ui().esc;
-    return '<div class="fact"><dt>' + esc(label) + '</dt><dd class="ltr">' + esc(value) + '</dd></div>';
+    return '<div class="fact"><dt>' + esc(label) + '</dt>' +
+      '<dd' + (latin ? ' class="ltr" lang="en"' : '') + '>' + esc(value) + '</dd></div>';
   }
 
   // Decorative only. Bar widths come from the row id, so a pass always looks
@@ -60,23 +75,31 @@
     var km = legKm(flight);
 
     var facts = [];
-    if (flight.aircraft) facts.push(fact('Aircraft', flight.aircraft));
-    if (km !== null) facts.push(fact('Distance', ui().number(km) + ' km'));
-    if (from && to) facts.push(fact('Route', from.city + ' to ' + to.city));
+    if (flight.aircraft) facts.push(fact(t('pass.fact.aircraft'), flight.aircraft, true));
+    if (km !== null) {
+      facts.push(fact(t('pass.fact.distance'), ui().number(km) + ' ' + t('unit.km')));
+    }
+    if (from && to) {
+      facts.push(fact(t('pass.fact.route'), t('pass.route.value', { from: from.city, to: to.city })));
+    }
 
     var actions = '';
     if (opts.actions) {
       actions =
         '<div class="pass-actions">' +
-          '<button type="button" class="btn btn-ghost" data-window="' + esc(flight.id) + '" title="Look out of the window">' +
-            ICON.window + '<span class="visually-hidden">Window seat</span>' +
+          '<button type="button" class="btn btn-ghost" data-window="' + esc(flight.id) + '" title="' +
+            esc(t('pass.window.title')) + '">' +
+            ICON.window + '<span class="visually-hidden">' + esc(t('pass.window')) + '</span>' +
           '</button>' +
           '<button type="button" class="btn btn-ghost" data-share="' + esc(flight.id) + '"' +
-            (flight.is_public ? ' data-on="true" title="Shared — open to anyone with the link"' : ' title="Share this flight"') + '>' +
-            ICON.share + '<span class="visually-hidden">Share</span>' +
+            (flight.is_public ? ' data-on="true"' : '') +
+            ' title="' + esc(t(flight.is_public ? 'pass.share.on' : 'pass.share.title')) + '">' +
+            ICON.share + '<span class="visually-hidden">' + esc(t('pass.share')) + '</span>' +
           '</button>' +
-          '<button type="button" class="btn btn-ghost" data-edit="' + esc(flight.id) + '">Edit</button>' +
-          '<button type="button" class="btn btn-ghost" data-delete="' + esc(flight.id) + '">Delete</button>' +
+          '<button type="button" class="btn btn-ghost" data-edit="' + esc(flight.id) + '">' +
+            esc(t('pass.edit')) + '</button>' +
+          '<button type="button" class="btn btn-ghost" data-delete="' + esc(flight.id) + '">' +
+            esc(t('pass.delete')) + '</button>' +
         '</div>';
     }
 
@@ -95,21 +118,22 @@
         '<div class="pass-main">' +
           '<div class="pass-head">' +
             '<span class="pass-airline">' + esc(flight.airline) + '</span>' +
-            '<span class="pass-flightno ltr">' + esc(flight.flight_no) + '</span>' +
+            '<span class="pass-flightno ltr" lang="en">' + esc(flight.flight_no) + '</span>' +
             (flight.is_public
-              ? '<span class="pass-flag" title="Open to anyone with the link">Shared</span>'
+              ? '<span class="pass-flag" title="' + esc(t('pass.share.on')) + '">' +
+                  esc(t('pass.flag.shared')) + '</span>'
               : '') +
             '<span class="pass-date">' + esc(formatDay(flight.flown_on)) + '</span>' +
           '</div>' +
           '<div class="route">' +
             '<div class="route-end">' +
-              '<div class="route-iata ltr">' + esc(flight.from_iata) + '</div>' +
-              '<div class="route-city">' + esc(from ? from.city : 'Unlisted airport') + '</div>' +
+              '<div class="route-iata ltr" lang="en">' + esc(flight.from_iata) + '</div>' +
+              '<div class="route-city">' + esc(from ? from.city : t('pass.unlisted')) + '</div>' +
             '</div>' +
             '<div class="route-line" aria-hidden="true">' + ICON.plane + '</div>' +
             '<div class="route-end to">' +
-              '<div class="route-iata ltr">' + esc(flight.to_iata) + '</div>' +
-              '<div class="route-city">' + esc(to ? to.city : 'Unlisted airport') + '</div>' +
+              '<div class="route-iata ltr" lang="en">' + esc(flight.to_iata) + '</div>' +
+              '<div class="route-city">' + esc(to ? to.city : t('pass.unlisted')) + '</div>' +
             '</div>' +
           '</div>' +
           (facts.length ? '<dl class="pass-facts">' + facts.join('') + '</dl>' : '') +
@@ -119,7 +143,8 @@
             : '') +
         '</div>' +
         '<div class="pass-stub">' +
-          '<dl class="stub-seat"><dt>Seat</dt><dd class="ltr">' + esc(flight.seat || '—') + '</dd></dl>' +
+          '<dl class="stub-seat"><dt>' + esc(t('pass.seat')) + '</dt>' +
+            '<dd class="ltr" lang="en">' + esc(flight.seat || t('pass.seat.none')) + '</dd></dl>' +
           barcode(flight.id || flight.flight_no) +
           actions +
         '</div>' +
@@ -151,7 +176,7 @@
         function (url) {
           var img = document.createElement('img');
           img.className = 'pass-photo-img';
-          img.alt = 'A photograph attached to this flight.';
+          img.alt = t('photo.alt');
           img.loading = 'lazy';
           img.decoding = 'async';
           img.onload = function () { figure.setAttribute('data-ready', '1'); };
@@ -161,7 +186,7 @@
           figure.appendChild(img);
         },
         function () {
-          figure.innerHTML = '<figcaption class="caption">That photograph could not be opened.</figcaption>';
+          figure.innerHTML = '<figcaption class="caption">' + ui().esc(t('photo.failed')) + '</figcaption>';
         }
       );
     });

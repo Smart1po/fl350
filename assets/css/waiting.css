@@ -1,0 +1,178 @@
+/* ==========================================================================
+   FL350 — the wait.
+
+   Between one page and the next there is a moment. On most sites it is a
+   white flash. Here it is a departure board.
+
+   Three things happen at once: the wordmark holds still, a split-flap board
+   turns over to the name of where you are going, and an aeroplane runs the
+   arc underneath. The whole thing is built to be *shorter* than it looks —
+   the board settles in about half a second and the overlay leaves the moment
+   the page behind it is ready.
+
+   It never traps anybody. boot.js paints the ground before first paint and
+   also sets a timer to tear it down again whatever happens, so a failure in
+   this file costs you an animation, not the site.
+   ========================================================================== */
+
+/* --- the pre-paint ground, painted by boot.js before anything else ------ */
+
+html.arriving::before {
+  content: "";
+  position: fixed; inset: 0; z-index: 90;
+  background: hsl(var(--bg)) url("/assets/favicon.svg") center / 56px 56px no-repeat;
+}
+html.arriving body > *:not(.wait) { visibility: hidden; }
+
+/* --- the overlay -------------------------------------------------------- */
+
+.wait {
+  position: fixed; inset: 0; z-index: 95;
+  display: grid; place-items: center;
+  padding: 24px;
+  background: hsl(var(--bg));
+  opacity: 1;
+  transition: opacity 320ms var(--ease);
+}
+.wait[data-leaving="true"] { opacity: 0; pointer-events: none; }
+
+/* The same sky as the front page, held back so the board reads over it. It
+   carries the .sky class as well, because that is what positions its layers
+   and defines the cloud they are all masked by. */
+.wait-sky.sky { inset: 0; height: 100%; opacity: .5; }
+
+.wait-inner {
+  position: relative;
+  display: grid; justify-items: center; gap: 28px;
+  width: 100%; max-width: 520px;
+  text-align: center;
+}
+
+.wait-mark {
+  font: 500 1rem/1 var(--mono);
+  letter-spacing: .3em; text-indent: .3em;
+  color: hsl(var(--fg-faint));
+}
+.wait-mark span { color: hsl(var(--accent-text)); }
+
+/* --- the split-flap board ----------------------------------------------- */
+
+.wait-board {
+  display: flex; gap: 4px; flex-wrap: wrap; justify-content: center;
+  direction: ltr;
+}
+
+.flap {
+  position: relative;
+  width: 30px; height: 42px;
+  border-radius: 3px;
+  background: hsl(var(--panel-2));
+  border: 1px solid hsl(var(--border));
+  box-shadow: inset 0 -1px 0 hsl(var(--fg) / .05);
+  overflow: hidden;
+}
+/* the hairline every one of these boards has across its middle */
+.flap::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 50%;
+  height: 1px; background: hsl(var(--bg) / .85);
+}
+.flap-face {
+  display: grid; place-items: center;
+  width: 100%; height: 100%;
+  font: 500 1.25rem/1 var(--mono);
+  color: hsl(var(--fg));
+  font-variant-numeric: tabular-nums;
+}
+.flap[data-space="true"] { background: transparent; border-color: transparent; box-shadow: none; }
+.flap[data-space="true"]::after { display: none; }
+
+/* the turn itself: the face drops a little and comes back, once per glyph */
+.flap[data-turning="true"] .flap-face { animation: flap-turn 62ms linear; }
+@keyframes flap-turn {
+  0%   { transform: translateY(0)     scaleY(1);   opacity: 1; }
+  49%  { transform: translateY(-42%)  scaleY(.02); opacity: .35; }
+  50%  { transform: translateY(42%)   scaleY(.02); opacity: .35; }
+  100% { transform: translateY(0)     scaleY(1);   opacity: 1; }
+}
+/* the cell that has just settled gets one beat of the accent behind it */
+.flap[data-settled="true"] { animation: flap-settle 520ms var(--ease); }
+@keyframes flap-settle {
+  0%   { border-color: hsl(var(--accent) / .85); }
+  100% { border-color: hsl(var(--border)); }
+}
+
+/* Arabic is cursive: letters joined in a word change shape, and one letter
+   per cell would spell nonsense. So an Arabic reader gets the line of type
+   instead of the board, and the same aeroplane underneath it. */
+.wait-word {
+  font-family: var(--serif);
+  font-size: clamp(1.75rem, 1.2rem + 2.4vw, 2.5rem);
+  line-height: 1.15; font-weight: 400;
+  color: hsl(var(--fg));
+}
+
+/* --- the arc ------------------------------------------------------------ */
+
+.wait-arc { width: min(320px, 76vw); }
+.wait-arc svg { width: 100%; height: auto; overflow: visible; }
+
+.wait-arc-line {
+  fill: none;
+  stroke: hsl(var(--border-strong));
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.wait-arc-run {
+  fill: none;
+  stroke: hsl(var(--accent));
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: var(--arc-len) var(--arc-len);
+  stroke-dashoffset: var(--arc-len);
+  animation: arc-run 2.6s var(--ease) infinite;
+}
+@keyframes arc-run {
+  0%   { stroke-dashoffset: var(--arc-len); }
+  70%  { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+.wait-arc-dot { fill: hsl(var(--accent-text)); }
+.wait-arc-plane {
+  fill: hsl(var(--accent-text));
+  offset-path: var(--arc-path);
+  offset-rotate: auto;
+  animation: arc-fly 2.6s var(--ease) infinite;
+}
+@keyframes arc-fly {
+  0%   { offset-distance: 0%;   opacity: 0; }
+  8%   { opacity: 1; }
+  70%  { offset-distance: 100%; opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+
+/* --- the line that says what is happening ------------------------------- */
+
+.wait-status {
+  min-height: 1.4em;
+  font-size: .9375rem;
+  color: hsl(var(--fg-muted));
+}
+
+/* --- somebody asked for less movement ----------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .flap[data-turning="true"] .flap-face,
+  .flap[data-settled="true"] { animation: none !important; }
+  .wait-arc-run { animation: none !important; stroke-dashoffset: 0; opacity: .5; }
+  .wait-arc-plane { animation: none !important; offset-distance: 62%; }
+}
+
+/* A browser without offset-path would leave the aeroplane parked at the
+   origin, which reads as broken rather than as still. Hide it and let the
+   arc carry the moment on its own. */
+@supports not (offset-path: path("M0,0 L1,1")) {
+  .wait-arc-plane { display: none; }
+}

@@ -161,19 +161,13 @@
   }
 
   // Every page has the same switches in the same corner, so wire them here
-  // once rather than asking each page script to remember.
+  // once rather than asking each page script to remember. The language switch
+  // is not one of them: i18n.js mounts #lang-toggle itself and unhides it, and
+  // doing it from here as well only means whichever file loses the race leaves
+  // an empty button in the bar.
   function ready() {
     mountThemeToggle(document.getElementById('theme-toggle'));
     watchTopbar();
-
-    // The language switch only exists if the localisation module was loaded.
-    // Until then its slot in the top bar stays hidden rather than showing an
-    // empty button.
-    var lang = document.getElementById('lang-toggle');
-    if (lang && FL.i18n && typeof FL.i18n.mountToggle === 'function') {
-      lang.hidden = false;
-      FL.i18n.mountToggle(lang);
-    }
   }
 
   if (document.readyState === 'loading') {

@@ -129,6 +129,24 @@
 
   /* ------------------------------------------------------------ the lookup */
 
+  // A Latin token dropped into an Arabic sentence comes out backwards. In
+  // "KU 681" the space between the letters and the digits is a neutral
+  // between L and EN, so the bidi algorithm hands it the paragraph direction
+  // and the run splits: the reader sees "681 KU". Same for '{route} × {n}'.
+  // Isolating the token here fixes every call site at once, including the
+  // ones written later.
+  //
+  // Nothing is inserted on an English page. The isolate would be invisible
+  // there, but it would still be in textContent — and these same strings go
+  // into title and aria-label attributes and get compared and copied — so
+  // the English output stays exactly the characters the catalogue holds.
+  function island(value) {
+    if (lang !== 'ar' || !/[A-Za-z]/.test(value)) return value;
+    // written as escapes: these two are invisible, and a copy-paste that
+    // silently dropped them would be a bug nobody could see in the diff
+    return '\u2066' + value + '\u2069'; // LRI ... PDI
+  }
+
   // {year} is the one placeholder never grouped — a year is a label, not a
   // quantity, and '2,026' would be wrong in either language.
   function fill(text, vars) {
@@ -136,8 +154,10 @@
     return String(text).replace(/\{(\w+)\}/g, function (whole, name) {
       if (!Object.prototype.hasOwnProperty.call(vars, name)) return whole;
       var value = vars[name];
+      // a formatted number is digits and separators only, so it has nothing
+      // to isolate and the algorithm keeps it in one piece by itself
       if (typeof value === 'number') return name === 'year' ? String(value) : number(value);
-      return value === null || value === undefined ? '' : String(value);
+      return value === null || value === undefined ? '' : island(String(value));
     });
   }
 
@@ -222,10 +242,12 @@
     var button = document.getElementById('theme-toggle');
     if (!button || button.getAttribute('data-i18n-wired') === '1') return;
     button.setAttribute('data-i18n-wired', '1');
-    // registered after ui.js has wired its own click handler, so this runs
-    // once ui.js has finished repainting the button
+    // whichever of this file and ui.js loads first also listens first, and
+    // ui.js repaints the button from scratch — title and hidden label both.
+    // waiting a turn puts the translation back after the second handler has
+    // run, whatever the script order on the page turns out to be.
     button.addEventListener('click', function () {
-      retitleTheme();
+      window.setTimeout(retitleTheme, 0);
     });
   }
 
@@ -266,7 +288,7 @@
     button.removeAttribute('hidden');
 
     button.addEventListener('click', function () {
-      apply(lang === 'ar' ? 'en' : 'ar');
+      apply(lang === 'ar' ? 'en' : 'ar', true);
       // the button keeps focus, and aria-checked flipping is what a screen
       // reader announces — nothing moves and nothing reloads
     });
@@ -293,13 +315,19 @@
     document.dispatchEvent(event);
   }
 
-  function apply(next) {
+  // persist is what separates a choice from a guess. Writing the detected
+  // language down on the first visit would pin the reader to whatever their
+  // browser happened to ask for that day: saved() beats preferred() forever
+  // after, so detection would never get another turn — not even once they
+  // reorder their browser's language list. Only the switch and the public
+  // entry point remember anything.
+  function apply(next, persist) {
     var wanted = normalise(next) || lang;
     lang = wanted;
 
     html.setAttribute('lang', lang);
     html.setAttribute('dir', dir());
-    remember(lang);
+    if (persist) remember(lang);
 
     // before the body exists there is nothing to swap; the sweep happens on
     // DOMContentLoaded instead
@@ -317,6 +345,12 @@
     return lang;
   }
 
+  // a page script calling in is acting for the reader, so that one is a
+  // choice and does get written down
+  function choose(next) {
+    return apply(next, true);
+  }
+
   /* -------------------------------------------------------------------- boot */
 
   lang = saved() || preferred();
@@ -324,11 +358,13 @@
   html.setAttribute('dir', dir());
 
   function ready() {
+    // the boot pass is detection, not a decision — nothing is written down
     apply(lang);
     watchTheme();
     mountToggle(document.getElementById('lang-toggle'));
-    // ui.js paints the theme button from its own DOMContentLoaded handler,
-    // which was registered after this one; catch up once that has run
+    // ui.js paints the theme button from a DOMContentLoaded handler of its
+    // own, and there is no guarantee whose runs first; a turn later is after
+    // both of them either way
     window.setTimeout(retitleTheme, 0);
     booted = true;
   }
@@ -340,7 +376,7 @@
   }
 
   FL.i18n = {
-    apply: apply,
+    apply: choose,
     current: function () {
       return lang;
     },
